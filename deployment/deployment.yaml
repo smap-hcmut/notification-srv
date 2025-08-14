@@ -42,15 +42,15 @@ spec:
         # Load environment variables from existing secrets
         envFrom:
         - secretRef:
-            name: smap-api-config
+            name: smap-config
         - secretRef:
-            name: smap-api-database
+            name: smap-database
         - secretRef:
-            name: smap-api-discord
+            name: smap-discord
         - secretRef:
-            name: smap-api-minio
+            name: smap-minio
         - secretRef:
-            name: smap-api-security
+            name: smap-security
         env:
         - name: CONTAINER_NAME
           value: "smap-api"
