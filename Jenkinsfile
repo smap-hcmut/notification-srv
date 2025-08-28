@@ -17,12 +17,11 @@ pipeline {
         REGISTRY_USERNAME = 'admin'
         REGISTRY_PASSWORD = credentials('registryPassword')
 
-        // K8s Configuration
         K8S_NAMESPACE = 'smap'
         K8S_DEPLOYMENT_NAME = 'smap-api'
         K8S_CONTAINER_NAME = 'smap-api'
-        K8S_API_SERVER = 'https://172.16.21.31:6443'
-        K8S_TOKEN = credentials('k8s-api')
+        K8S_API_SERVER = 'https://172.16.21.111:6443'
+        K8S_TOKEN = credentials('k8s-token')
         
         TEXT_START = "⚪ Service ${SERVICE} ${ENVIRONMENT} Build Started"
         TEXT_BUILD_AND_PUSH_APP_FAIL = "🔴 Service ${SERVICE} ${ENVIRONMENT} Build and Push Failed"
@@ -173,9 +172,7 @@ pipeline {
                         
                     } catch (Exception e) {
                         def errorMsg = e.getMessage().replaceAll('"', '\\\\"')
-                        // Skip verification notification
                         echo "Verification failed but deployment may still be successful: ${e.getMessage()}"
-                        // Don't fail the build on verification issues
                     }
                 }
             }
@@ -203,17 +200,12 @@ pipeline {
                 }
             }
         }
-    }
 
-    post {
-        failure {
-            script {
-                notifyDiscord(env.DISCORD_CHANNEL, env.DISCORD_CHAT_ID, "🔴 Service ${env.SERVICE} ${env.ENVIRONMENT} Pipeline Failed")
-            }
-        }
-        success {
-            script {
-                notifyDiscord(env.DISCORD_CHANNEL, env.DISCORD_CHAT_ID, "${env.TEXT_END}")
+        stage('Notify Build Finished') {
+            steps {
+                script {
+                    notifyDiscord(env.DISCORD_CHANNEL, env.DISCORD_CHAT_ID, "${env.TEXT_END}")
+                }
             }
         }
     }
