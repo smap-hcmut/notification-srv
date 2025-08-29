@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/caarlos0/env/v9"
 )
 
@@ -87,5 +89,7 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Print all config for testing
+	fmt.Printf("%+v\n", cfg)
 	return cfg, nil
 }
