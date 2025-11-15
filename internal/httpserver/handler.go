@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"smap-api/internal/middleware"
 
 	// Import this to execute the init function in docs.go which setups the Swagger docs.
 	_ "smap-api/docs" // TODO: Generate docs package
@@ -15,13 +16,11 @@ const (
 )
 
 func (srv HTTPServer) mapHandlers() error {
-	// discord, err := discord.New(srv.l, srv.discord)
-	// if err != nil {
-	// 	return err
-	// }
-	// // srv.gin.Use(middleware.Recovery(discord))
+	// Apply CORS middleware globally
+	corsConfig := middleware.DefaultCORSConfig()
+	srv.gin.Use(middleware.CORS(corsConfig))
 
-	// Health check endpoint
+	// Health check endpoints (no auth required)
 	srv.gin.GET("/health", srv.healthCheck)
 	srv.gin.GET("/ready", srv.readyCheck)
 	srv.gin.GET("/live", srv.liveCheck)
@@ -29,8 +28,10 @@ func (srv HTTPServer) mapHandlers() error {
 	// Swagger UI
 	srv.gin.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// routes
+	// API routes
 	// api := srv.gin.Group(Api)
+	// Apply auth middleware to protected routes
+	// api.Use(middlewareInstance.Auth())
 
 	return nil
 }

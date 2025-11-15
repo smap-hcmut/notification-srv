@@ -9,6 +9,7 @@ require (
 	github.com/caarlos0/env/v9 v9.0.0
 	github.com/friendsofgo/errors v0.9.2
 	github.com/gin-gonic/gin v1.11.0
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/minio/minio-go/v7 v7.0.97
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
