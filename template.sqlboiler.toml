@@ -1,6 +1,6 @@
 wipe=true                                 # Clean regeneration
-output="internal/dbmodels"                # Generated models location
-pkgname="dbmodels"                        # Package name
+output="internal/sqlboiler"                # Generated model location
+pkgname="sqlboiler"                        # Package name
 add-global-variant=true                   # Add global helper functions
 add-enum-types=true                       # Generate enum types
 no-hooks=false                            # Enable hooks for advanced features
