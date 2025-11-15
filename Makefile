@@ -2,7 +2,6 @@ include .env
 export
 BINARY=engine
 
-
 models:
 	@echo "Generating models"
 	@sqlboiler psql
