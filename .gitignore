@@ -1,0 +1,9 @@
+# Dependencies
+vendor/
+.go-version
+
+# Environment variables
+.env
+sqlboiler.toml
+
+docs
