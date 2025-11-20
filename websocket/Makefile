@@ -1,123 +1,58 @@
-include .env
-export
-BINARY=engine
+.PHONY: help run build docker-build docker-run clean test lint
 
-models:
-	@echo "Generating models"
-	@sqlboiler psql
+# Variables
+BINARY_NAME=websocket-server
+DOCKER_IMAGE=smap-websocket
+DOCKER_TAG=latest
+GO_FILES=$(shell find . -name '*.go' -type f)
 
-swagger:
-	@echo "Generating swagger"
-	@swag init -g cmd/api/main.go
-	@echo "Fixing swagger docs (removing deprecated LeftDelim/RightDelim)..."
-	@sed -i '' '/LeftDelim:/d' docs/docs.go
-	@sed -i '' '/RightDelim:/d' docs/docs.go
+help: ## Show this help message
+	@echo 'Usage: make [target]'
+	@echo ''
+	@echo 'Available targets:'
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-run-api:
-	@echo "Generating swagger"
-	@swag init -g cmd/api/main.go
-	@sed -i '' '/LeftDelim:/d' docs/docs.go
-	@sed -i '' '/RightDelim:/d' docs/docs.go
-	@echo "Running the application"
-	@go run cmd/api/main.go
+run: ## Run the WebSocket server locally
+	@echo "Starting WebSocket server..."
+	go run ./cmd/server
 
-run-consumer:
-	@echo "Running the consumer"
-	@go run cmd/consumer/main.go
+build: ## Build the binary
+	@echo "Building binary..."
+	go build -o $(BINARY_NAME) -ldflags="-s -w" ./cmd/server
+	@echo "Binary built: $(BINARY_NAME)"
 
-build-docker-compose:
-	@echo "make models first"
-	@make models
-	@echo "Building docker compose"
-	docker compose up --build -d
+docker-build: ## Build Docker image (local platform)
+	@echo "Building Docker image for local platform..."
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f cmd/server/Dockerfile .
 
-# Docker build targets (using optimized Dockerfile)
-docker-build:
-	@echo "Building Docker image for local platform"
-	@./build.sh local
+docker-build-amd64: ## Build Docker image for AMD64 servers
+	@echo "Building Docker image for AMD64..."
+	docker buildx build --platform linux/amd64 -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f cmd/server/Dockerfile .
 
-docker-build-amd64:
-	@echo "Building Docker image for AMD64"
-	@./build.sh amd64
+docker-run: docker-build ## Build and run Docker container
+	@echo "Running Docker container..."
+	docker run -p 8081:8081 --env-file .env $(DOCKER_IMAGE):$(DOCKER_TAG)
 
-docker-build-multi:
-	@echo "Building multi-platform Docker image (requires REGISTRY)"
-	@./build.sh multi
+docker-push: ## Push Docker image to registry
+	@echo "Pushing Docker image..."
+	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
 
-docker-run:
-	@echo "Building and running Docker container"
-	@./build.sh run
+clean: ## Clean build artifacts
+	@echo "Cleaning..."
+	rm -f $(BINARY_NAME)
+	docker rmi -f $(DOCKER_IMAGE):$(DOCKER_TAG) 2>/dev/null || true
 
-docker-clean:
-	@echo "Cleaning Docker images"
-	@./build.sh clean
+test: ## Run tests
+	@echo "Running tests..."
+	go test -v -cover ./...
 
-docker-push:
-	@echo "Building and pushing to registry (requires REGISTRY)"
-	@./build.sh push
+lint: ## Run linter
+	@echo "Running linter..."
+	golangci-lint run ./...
 
-# Consumer Docker build targets (using optimized Dockerfile)
-consumer-build:
-	@echo "Building Consumer Docker image for local platform"
-	@./build-consumer.sh local
+deps: ## Download dependencies
+	@echo "Downloading dependencies..."
+	go mod download
+	go mod tidy
 
-consumer-build-amd64:
-	@echo "Building Consumer Docker image for AMD64"
-	@./build-consumer.sh amd64
-
-consumer-build-multi:
-	@echo "Building multi-platform Consumer Docker image (requires REGISTRY)"
-	@./build-consumer.sh multi
-
-consumer-run:
-	@echo "Building and running Consumer Docker container"
-	@./build-consumer.sh run
-
-consumer-clean:
-	@echo "Cleaning Consumer Docker images"
-	@./build-consumer.sh clean
-
-consumer-push:
-	@echo "Building and pushing Consumer to registry (requires REGISTRY)"
-	@./build-consumer.sh push
-
-# Show all available targets
-help:
-	@echo "Available targets:"
-	@echo ""
-	@echo "Development:"
-	@echo "  models              - Generate SQLBoiler models"
-	@echo "  swagger             - Generate Swagger documentation"
-	@echo "  run-api             - Run API server locally"
-	@echo "  run-consumer        - Run consumer locally"
-	@echo "  build-docker-compose - Build with docker-compose"
-	@echo ""
-	@echo "Docker - API Server:"
-	@echo "  docker-build        - Build for local platform"
-	@echo "  docker-build-amd64  - Build for AMD64 servers"
-	@echo "  docker-build-multi  - Build multi-platform (requires REGISTRY env)"
-	@echo "  docker-run          - Build and run container locally"
-	@echo "  docker-clean        - Remove all Docker images"
-	@echo "  docker-push         - Build and push to registry"
-	@echo ""
-	@echo "Docker - Consumer Service:"
-	@echo "  consumer-build      - Build consumer for local platform"
-	@echo "  consumer-build-amd64 - Build consumer for AMD64 servers"
-	@echo "  consumer-build-multi - Build multi-platform (requires REGISTRY env)"
-	@echo "  consumer-run        - Build and run consumer container locally"
-	@echo "  consumer-clean      - Remove all consumer Docker images"
-	@echo "  consumer-push       - Build and push consumer to registry"
-	@echo ""
-	@echo "Examples:"
-	@echo "  make docker-build"
-	@echo "  make docker-run"
-	@echo "  make consumer-build"
-	@echo "  make consumer-run"
-	@echo "  REGISTRY=docker.io/username make docker-push"
-	@echo "  REGISTRY=docker.io/username make consumer-push"
-
-.PHONY: models swagger run-api run-consumer build-docker-compose \
-        docker-build docker-build-amd64 docker-build-multi \
-        docker-run docker-clean docker-push \
-        consumer-build consumer-build-amd64 consumer-build-multi \
-        consumer-run consumer-clean consumer-push help
+.DEFAULT_GOAL := help

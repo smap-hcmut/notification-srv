@@ -2,113 +2,83 @@ package config
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/caarlos0/env/v9"
 )
 
 type Config struct {
 	// Server Configuration
-	HTTPServer HTTPServerConfig
-	Logger     LoggerConfig
+	Server ServerConfig
+	Logger LoggerConfig
 
-	// Database Configuration
-	Postgres PostgresConfig
+	// Redis Configuration
+	Redis RedisConfig
 
-	// Storage Configuration
-	MinIO MinIOConfig
-
-	// SMTP Configuration
-	SMTP SMTPConfig
-
-	// Message Queue Configuration
-	RabbitMQ RabbitMQConfig
+	// WebSocket Configuration
+	WebSocket WebSocketConfig
 
 	// Authentication & Security Configuration
-	JWT            JWTConfig
-	Encrypter      EncrypterConfig
-	InternalConfig InternalConfig
+	JWT JWTConfig
 
 	// Monitoring & Notification Configuration
 	Discord DiscordConfig
 }
 
-// JWTConfig is the configuration for the JWT,
-// which is used to generate and verify the JWT.
+// ServerConfig is the configuration for the WebSocket server
+type ServerConfig struct {
+	Host string `env:"WS_HOST" envDefault:"0.0.0.0"`
+	Port int    `env:"WS_PORT" envDefault:"8081"`
+	Mode string `env:"WS_MODE" envDefault:"release"`
+}
+
+// RedisConfig is the configuration for Redis
+type RedisConfig struct {
+	Host     string `env:"REDIS_HOST" envDefault:"localhost"`
+	Port     int    `env:"REDIS_PORT" envDefault:"6379"`
+	Password string `env:"REDIS_PASSWORD"`
+	DB       int    `env:"REDIS_DB" envDefault:"0"`
+	UseTLS   bool   `env:"REDIS_USE_TLS" envDefault:"true"`
+
+	// Connection pool settings
+	MaxRetries      int           `env:"REDIS_MAX_RETRIES" envDefault:"3"`
+	MinIdleConns    int           `env:"REDIS_MIN_IDLE_CONNS" envDefault:"10"`
+	PoolSize        int           `env:"REDIS_POOL_SIZE" envDefault:"100"`
+	PoolTimeout     time.Duration `env:"REDIS_POOL_TIMEOUT" envDefault:"4s"`
+	ConnMaxIdleTime time.Duration `env:"REDIS_CONN_MAX_IDLE_TIME" envDefault:"5m"`
+	ConnMaxLifetime time.Duration `env:"REDIS_CONN_MAX_LIFETIME" envDefault:"30m"`
+}
+
+// WebSocketConfig is the configuration for WebSocket connections
+type WebSocketConfig struct {
+	PingInterval    time.Duration `env:"WS_PING_INTERVAL" envDefault:"30s"`
+	PongWait        time.Duration `env:"WS_PONG_WAIT" envDefault:"60s"`
+	WriteWait       time.Duration `env:"WS_WRITE_WAIT" envDefault:"10s"`
+	MaxMessageSize  int64         `env:"WS_MAX_MESSAGE_SIZE" envDefault:"512"`
+	ReadBufferSize  int           `env:"WS_READ_BUFFER_SIZE" envDefault:"1024"`
+	WriteBufferSize int           `env:"WS_WRITE_BUFFER_SIZE" envDefault:"1024"`
+	MaxConnections  int           `env:"WS_MAX_CONNECTIONS" envDefault:"10000"`
+}
+
+// JWTConfig is the configuration for the JWT
 type JWTConfig struct {
-	SecretKey string `env:"JWT_SECRET"`
+	SecretKey string `env:"JWT_SECRET_KEY"`
 }
 
-// HTTPServerConfig is the configuration for the HTTP server,
-// which is used to start, call API, etc.
-type HTTPServerConfig struct {
-	Host string `env:"HOST" envDefault:""`
-	Port int    `env:"APP_PORT" envDefault:"8080"`
-	Mode string `env:"API_MODE" envDefault:"debug"`
-}
-
-// SMTPConfig is the configuration for the SMTP,
-// which is used to send email.
-type SMTPConfig struct {
-	Host     string `env:"SMTP_HOST" envDefault:"smtp.gmail.com"`
-	Port     int    `env:"SMTP_PORT" envDefault:"587"`
-	Username string `env:"SMTP_USERNAME"`
-	Password string `env:"SMTP_PASSWORD"`
-	From     string `env:"SMTP_FROM"`
-	FromName string `env:"SMTP_FROM_NAME"`
-}
-
-// RabbitMQConfig is the configuration for the RabbitMQ,
-// which is used to connect to the RabbitMQ.
-type RabbitMQConfig struct {
-	URL string `env:"RABBITMQ_URL"`
-}
-
-// LoggerConfig is the configuration for the logger,
-// which is used to log the application.
+// LoggerConfig is the configuration for the logger
 type LoggerConfig struct {
-	Level    string `env:"LOGGER_LEVEL" envDefault:"debug"`
-	Mode     string `env:"LOGGER_MODE" envDefault:"debug"`
-	Encoding string `env:"LOGGER_ENCODING" envDefault:"console"`
+	Level    string `env:"LOGGER_LEVEL" envDefault:"info"`
+	Mode     string `env:"LOGGER_MODE" envDefault:"production"`
+	Encoding string `env:"LOGGER_ENCODING" envDefault:"json"`
 }
 
-// PostgresConfig is the configuration for the Postgres,
-// which is used to connect to the Postgres.
-type PostgresConfig struct {
-	Host     string `env:"POSTGRES_HOST" envDefault:"localhost"`
-	Port     int    `env:"POSTGRES_PORT" envDefault:"5432"`
-	User     string `env:"POSTGRES_USER" envDefault:"postgres"`
-	Password string `env:"POSTGRES_PASSWORD" envDefault:"postgres"`
-	DBName   string `env:"POSTGRES_DB" envDefault:"postgres"`
-	SSLMode  string `env:"POSTGRES_SSLMODE" envDefault:"prefer"`
-}
-
-type MinIOConfig struct {
-	Endpoint  string `env:"MINIO_ENDPOINT" envDefault:"localhost:9000"`
-	AccessKey string `env:"MINIO_ACCESS_KEY" envDefault:"minioadmin"`
-	SecretKey string `env:"MINIO_SECRET_KEY" envDefault:"minioadmin"`
-	UseSSL    bool   `env:"MINIO_USE_SSL" envDefault:"false"`
-	Region    string `env:"MINIO_REGION" envDefault:"us-east-1"`
-	Bucket    string `env:"MINIO_BUCKET"`
-}
-
+// DiscordConfig is the configuration for Discord webhook notifications
 type DiscordConfig struct {
 	WebhookID    string `env:"DISCORD_WEBHOOK_ID"`
 	WebhookToken string `env:"DISCORD_WEBHOOK_TOKEN"`
 }
 
-// EncrypterConfig is the configuration for the encrypter,
-// which is used to encrypt and decrypt the data.
-type EncrypterConfig struct {
-	Key string `env:"ENCRYPT_KEY"`
-}
-
-// InternalConfig is the configuration for the internal,
-// which is used to check the internal request.
-type InternalConfig struct {
-	InternalKey string `env:"INTERNAL_KEY"`
-}
-
-// Load is the function to load the configuration from the environment variables.
+// Load loads the configuration from environment variables
 func Load() (*Config, error) {
 	cfg := &Config{}
 	err := env.Parse(cfg)

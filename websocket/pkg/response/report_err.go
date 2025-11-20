@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	"smap-api/pkg/discord"
+	"smap-websocket/pkg/discord"
 
 	"github.com/gin-gonic/gin"
 )
