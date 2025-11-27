@@ -15,9 +15,21 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	// Allow all origins for now (configure in production)
+	// Allow credentials from specific trusted origins (required for cookie authentication)
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		origin := r.Header.Get("Origin")
+		allowedOrigins := []string{
+			"http://localhost:3000",
+			"http://127.0.0.1:3000",
+			"https://smap.tantai.dev",
+			"https://smap-api.tantai.dev",
+		}
+		for _, allowed := range allowedOrigins {
+			if origin == allowed {
+				return true
+			}
+		}
+		return false
 	},
 }
 
@@ -28,6 +40,7 @@ type Handler struct {
 	logger        log.Logger
 	wsConfig      WSConfig
 	redisNotifier RedisNotifier
+	cookieConfig  CookieConfig
 }
 
 // WSConfig holds WebSocket configuration
@@ -36,6 +49,16 @@ type WSConfig struct {
 	PingPeriod     time.Duration
 	WriteWait      time.Duration
 	MaxMessageSize int64
+}
+
+// CookieConfig holds cookie authentication configuration
+type CookieConfig struct {
+	Domain         string
+	Secure         bool
+	SameSite       string
+	MaxAge         int
+	MaxAgeRemember int
+	Name           string
 }
 
 // RedisNotifier is an interface for notifying Redis about connection changes
@@ -51,6 +74,7 @@ func NewHandler(
 	logger log.Logger,
 	wsConfig WSConfig,
 	redisNotifier RedisNotifier,
+	cookieConfig CookieConfig,
 ) *Handler {
 	return &Handler{
 		hub:           hub,
@@ -58,14 +82,24 @@ func NewHandler(
 		logger:        logger,
 		wsConfig:      wsConfig,
 		redisNotifier: redisNotifier,
+		cookieConfig:  cookieConfig,
 	}
 }
 
 // HandleWebSocket handles WebSocket connection requests
 // Implements requirements H-01, H-02, H-03, H-04, H-05
 func (h *Handler) HandleWebSocket(c *gin.Context) {
-	// H-02: Extract JWT from query parameter
-	token := c.Query("token")
+	// H-02: Extract JWT from cookie (primary method) or query parameter (fallback)
+	// Priority: Cookie first, then query parameter for backward compatibility
+	token, err := c.Cookie(h.cookieConfig.Name)
+	if err != nil || token == "" {
+		// Fallback to query parameter for backward compatibility
+		token = c.Query("token")
+		if token != "" {
+			h.logger.Warn(context.Background(), "WebSocket connection using deprecated query parameter authentication")
+		}
+	}
+
 	if token == "" {
 		h.logger.Warn(context.Background(), "WebSocket connection rejected: missing token")
 		c.JSON(http.StatusUnauthorized, gin.H{

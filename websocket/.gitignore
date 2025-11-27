@@ -1,17 +1,18 @@
-# Kubernetes secrets
-k8s/secret.yaml
-
-# Environment files
+# Environment and Secrets
 .env
 .env.local
 .env.*.local
+sqlboiler.toml
+k8s/secret.yaml
 
-# Binary builds
+# Builds and Dependencies
 websocket-server
 /bin
 /dist
+vendor/
+.go-version
 
-# Test coverage
+# Test Coverage
 *.out
 coverage.*
 
@@ -25,3 +26,13 @@ coverage.*
 # OS
 .DS_Store
 Thumbs.db
+
+# Documentation
+docs
+
+# OpenSpec
+# .cursor/*
+# .agent/*
+# .claude/*
+# AGENTS.md
+# CLAUDE.md

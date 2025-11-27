@@ -109,6 +109,14 @@ func main() {
 			MaxMessageSize: cfg.WebSocket.MaxMessageSize,
 		},
 		subscriber, // Implements RedisNotifier interface
+		ws.CookieConfig{
+			Domain:         cfg.Cookie.Domain,
+			Secure:         cfg.Cookie.Secure,
+			SameSite:       cfg.Cookie.SameSite,
+			MaxAge:         cfg.Cookie.MaxAge,
+			MaxAgeRemember: cfg.Cookie.MaxAgeRemember,
+			Name:           cfg.Cookie.Name,
+		},
 	)
 
 	// Setup Gin router
