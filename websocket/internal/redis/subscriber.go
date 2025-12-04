@@ -117,8 +117,8 @@ func (s *Subscriber) handleMessage(channel string, payload string) {
 	}
 
 	// Log dry-run messages specifically
-	if redisMsg.Type == "dryrun_result" {
-		var dryRunPayload map[string]interface{}
+	if redisMsg.IsDryRunResult() {
+		var dryRunPayload map[string]any
 		if err := json.Unmarshal(redisMsg.Payload, &dryRunPayload); err == nil {
 			s.logger.Infof(s.ctx, "Received dry-run result for user %s: job_id=%v, platform=%v, status=%v",
 				userID, dryRunPayload["job_id"], dryRunPayload["platform"], dryRunPayload["status"])
@@ -209,8 +209,18 @@ func (s *Subscriber) Shutdown(ctx context.Context) error {
 	}
 }
 
+// Message type constants
+const (
+	MessageTypeDryRunResult = "dryrun_result"
+)
+
 // RedisMessage represents a message from Redis
 type RedisMessage struct {
 	Type    string          `json:"type"`
 	Payload json.RawMessage `json:"payload"`
+}
+
+// IsDryRunResult checks if the message is a dry-run result
+func (r *RedisMessage) IsDryRunResult() bool {
+	return r.Type == MessageTypeDryRunResult
 }
