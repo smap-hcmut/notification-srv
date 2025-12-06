@@ -38,6 +38,9 @@ type Hub struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	done   chan struct{}
+
+	// Optional callback for user disconnect notification
+	redisNotifier RedisNotifier
 }
 
 // NewHub creates a new Hub instance
@@ -124,8 +127,11 @@ func (h *Hub) unregisterConnection(conn *Connection) {
 			// Close the connection
 			close(conn.send)
 
+			// Check if user has other connections
+			hasOtherConnections := len(h.connections[conn.userID]) > 0
+
 			// If no more connections for this user, remove the user entry
-			if len(h.connections[conn.userID]) == 0 {
+			if !hasOtherConnections {
 				delete(h.connections, conn.userID)
 				h.logger.Infof(context.Background(), "User disconnected (all tabs closed): %s", conn.userID)
 			} else {
@@ -134,6 +140,13 @@ func (h *Hub) unregisterConnection(conn *Connection) {
 					conn.userID,
 					len(h.connections[conn.userID]),
 				)
+			}
+
+			// Notify Redis subscriber about disconnect
+			if h.redisNotifier != nil {
+				if err := h.redisNotifier.OnUserDisconnected(conn.userID, hasOtherConnections); err != nil {
+					h.logger.Errorf(context.Background(), "Failed to notify Redis subscriber: %v", err)
+				}
 			}
 
 			break
@@ -226,6 +239,11 @@ func (h *Hub) getTotalConnectionsLocked() int {
 		total += len(connections)
 	}
 	return total
+}
+
+// SetRedisNotifier sets the Redis notifier for disconnect callbacks
+func (h *Hub) SetRedisNotifier(notifier RedisNotifier) {
+	h.redisNotifier = notifier
 }
 
 // Shutdown gracefully shuts down the hub

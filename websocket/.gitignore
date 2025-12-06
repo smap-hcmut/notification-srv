@@ -32,6 +32,7 @@ docs
 
 # OpenSpec
 .cursor/*
+.kilocode/*
 .agent/*
 .claude/*
 AGENTS.md

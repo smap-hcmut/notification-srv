@@ -97,6 +97,9 @@ func main() {
 	}
 	logger.Info(ctx, "Redis Pub/Sub subscriber started")
 
+	// Wire subscriber as notifier for Hub disconnect callbacks
+	hub.SetRedisNotifier(subscriber)
+
 	// Initialize WebSocket handler
 	wsHandler := ws.NewHandler(
 		hub,
@@ -138,6 +141,7 @@ func main() {
 		Hub:           hub,
 		RedisClient:   redisClient,
 		DiscordClient: discordClient,
+		Subscriber:    subscriber,
 	})
 
 	// Start server in a goroutine

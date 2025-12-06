@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	redis_client "github.com/redis/go-redis/v9"
@@ -36,6 +37,10 @@ type Subscriber struct {
 	// Reconnection settings
 	maxRetries int
 	retryDelay time.Duration
+
+	// Health tracking
+	lastMessageAt time.Time
+	isActive      atomic.Bool
 }
 
 // NewSubscriber creates a new Redis subscriber
@@ -60,6 +65,9 @@ func NewSubscriber(client *redis.Client, hub *ws.Hub, logger log.Logger) *Subscr
 func (s *Subscriber) Start() error {
 	// Subscribe to the pattern
 	s.pubsub = s.client.PSubscribe(s.ctx, s.patternChannel)
+
+	// Mark subscriber as active
+	s.isActive.Store(true)
 
 	s.logger.Infof(s.ctx, "Redis subscriber started, listening on pattern: %s", s.patternChannel)
 
@@ -100,6 +108,11 @@ func (s *Subscriber) listen() {
 
 // handleMessage processes a message from Redis
 func (s *Subscriber) handleMessage(channel string, payload string) {
+	// Track last message timestamp
+	s.mu.Lock()
+	s.lastMessageAt = time.Now()
+	s.mu.Unlock()
+
 	// Extract user ID from channel name: user_noti:{user_id}
 	parts := strings.Split(channel, ":")
 	if len(parts) != 2 {
@@ -181,8 +194,20 @@ func (s *Subscriber) OnUserDisconnected(userID string, hasOtherConnections bool)
 	return nil
 }
 
+// GetHealthInfo returns the current health info of the subscriber
+func (s *Subscriber) GetHealthInfo() (active bool, lastMessageAt time.Time, pattern string) {
+	s.mu.RLock()
+	lastMsg := s.lastMessageAt
+	s.mu.RUnlock()
+
+	return s.isActive.Load(), lastMsg, s.patternChannel
+}
+
 // Shutdown gracefully shuts down the subscriber
 func (s *Subscriber) Shutdown(ctx context.Context) error {
+	// Mark as inactive
+	s.isActive.Store(false)
+
 	s.cancel()
 
 	// Close pubsub

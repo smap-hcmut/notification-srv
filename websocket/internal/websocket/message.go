@@ -9,12 +9,38 @@ import (
 type MessageType string
 
 const (
-	MessageTypeNotification MessageType = "notification"
-	MessageTypeAlert        MessageType = "alert"
-	MessageTypeUpdate       MessageType = "update"
-	MessageTypePing         MessageType = "ping"
-	MessageTypePong         MessageType = "pong"
+	MessageTypeNotification     MessageType = "notification"
+	MessageTypeAlert            MessageType = "alert"
+	MessageTypeUpdate           MessageType = "update"
+	MessageTypePing             MessageType = "ping"
+	MessageTypePong             MessageType = "pong"
+	MessageTypeProjectProgress  MessageType = "project_progress"
+	MessageTypeProjectCompleted MessageType = "project_completed"
 )
+
+// ProgressPayload represents project progress notification from Project Service
+type ProgressPayload struct {
+	ProjectID       string  `json:"project_id"`
+	Status          string  `json:"status"`
+	Total           int     `json:"total"`
+	Done            int     `json:"done"`
+	Errors          int     `json:"errors"`
+	ProgressPercent float64 `json:"progress_percent"`
+}
+
+// Validate validates the progress payload fields
+func (p *ProgressPayload) Validate() error {
+	if p.ProjectID == "" {
+		return ErrInvalidMessage
+	}
+	if p.Total < 0 || p.Done < 0 || p.Errors < 0 {
+		return ErrInvalidMessage
+	}
+	if p.ProgressPercent < 0 || p.ProgressPercent > 100 {
+		return ErrInvalidMessage
+	}
+	return nil
+}
 
 // Message represents a message sent over WebSocket
 type Message struct {
