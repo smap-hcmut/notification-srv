@@ -16,6 +16,7 @@ const (
 	MessageTypePong             MessageType = "pong"
 	MessageTypeProjectProgress  MessageType = "project_progress"
 	MessageTypeProjectCompleted MessageType = "project_completed"
+	MessageTypeDryRunResult     MessageType = "dryrun_result"
 )
 
 // ProgressPayload represents project progress notification from Project Service
