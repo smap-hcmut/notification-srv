@@ -61,7 +61,6 @@ func main() {
 	// Initialize Redis client
 	redisClient, err := redis.NewClient(redis.Config{
 		Host:            cfg.Redis.Host,
-		Port:            cfg.Redis.Port,
 		Password:        cfg.Redis.Password,
 		DB:              cfg.Redis.DB,
 		UseTLS:          cfg.Redis.UseTLS,
@@ -77,7 +76,7 @@ func main() {
 		return
 	}
 	defer redisClient.Close()
-	logger.Infof(ctx, "Redis connected successfully to %s:%d", cfg.Redis.Host, cfg.Redis.Port)
+	logger.Infof(ctx, "Redis connected successfully to %s", cfg.Redis.Host)
 
 	// Initialize JWT validator
 	jwtValidator := jwt.NewValidator(jwt.Config{

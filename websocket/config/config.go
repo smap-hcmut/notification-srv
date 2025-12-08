@@ -37,12 +37,12 @@ type ServerConfig struct {
 }
 
 // RedisConfig is the configuration for Redis
+// Note: Only standalone mode is supported
 type RedisConfig struct {
-	Host     string `env:"REDIS_HOST" envDefault:"localhost"`
-	Port     int    `env:"REDIS_PORT" envDefault:"6379"`
+	Host     string `env:"REDIS_HOST" envDefault:"localhost:6379"`
 	Password string `env:"REDIS_PASSWORD"`
 	DB       int    `env:"REDIS_DB" envDefault:"0"`
-	UseTLS   bool   `env:"REDIS_USE_TLS" envDefault:"true"`
+	UseTLS   bool   `env:"REDIS_USE_TLS" envDefault:"false"`
 
 	// Connection pool settings
 	MaxRetries      int           `env:"REDIS_MAX_RETRIES" envDefault:"3"`

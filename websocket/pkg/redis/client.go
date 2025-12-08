@@ -18,13 +18,13 @@ type Client struct {
 // NewClient creates a new Redis client with the given configuration
 func NewClient(cfg Config) (*Client, error) {
 	opts := &redis_client.Options{
-		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		Password:     cfg.Password,
-		DB:           cfg.DB,
-		MaxRetries:   cfg.MaxRetries,
-		MinIdleConns: cfg.MinIdleConns,
-		PoolSize:     cfg.PoolSize,
-		PoolTimeout:  cfg.PoolTimeout,
+		Addr:            cfg.Host, // Host already includes port (host:port)
+		Password:        cfg.Password,
+		DB:              cfg.DB,
+		MaxRetries:      cfg.MaxRetries,
+		MinIdleConns:    cfg.MinIdleConns,
+		PoolSize:        cfg.PoolSize,
+		PoolTimeout:     cfg.PoolTimeout,
 		ConnMaxIdleTime: cfg.ConnMaxIdleTime,
 		ConnMaxLifetime: cfg.ConnMaxLifetime,
 	}

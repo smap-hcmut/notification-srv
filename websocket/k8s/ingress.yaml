@@ -4,32 +4,49 @@ metadata:
   name: smap-ingress
   namespace: smap
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    # WebSocket specific annotations
-    nginx.ingress.kubernetes.io/websocket-services: "smap-websocket"
+    kubernetes.io/ingress.class: nginx
+    # Timeouts for long-running connections (WebSocket)
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    # WebSocket support
+    nginx.ingress.kubernetes.io/websocket-services: "smap-websocket"
+    # Rewrite rules
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    # CORS (if needed)
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
 spec:
-  ingressClassName: nginx
-  tls:
-  - hosts:
-    - smap-api.tantai.dev
-    secretName: smap-api-tls
   rules:
-  - host: smap-api.tantai.dev
-    http:
-      paths:
-      # WebSocket Service
-      - path: /ws(/|$)(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: smap-websocket
-            port:
-              number: 80
+    - host: smap-api.tantai.dev
+      http:
+        paths:
+          # Identity Service
+          - path: /identity(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: smap-identity-api
+                port:
+                  number: 80
 
+          # Project Service
+          - path: /project(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: smap-project-api
+                port:
+                  number: 80
+
+          # WebSocket Service
+          - path: /ws(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: smap-websocket
+                port:
+                  number: 80

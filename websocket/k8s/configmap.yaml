@@ -6,29 +6,32 @@ metadata:
   labels:
     app: smap-websocket
 data:
-  # WebSocket Server Configuration
+  # Environment Configuration
+  ENV: "production"
+
+  # Server Configuration
   WS_HOST: "0.0.0.0"
   WS_PORT: "8081"
   WS_MODE: "release"
-  
-  # Environment Configuration
-  ENV: "production"  # Values: production | staging | dev
-  
+
   # Logger Configuration
   LOGGER_LEVEL: "info"
   LOGGER_MODE: "production"
   LOGGER_ENCODING: "json"
-  
-  # Redis Configuration (non-sensitive)
+
+  # Redis Configuration
+  REDIS_HOST: "redis-service:6379"
   REDIS_DB: "0"
-  REDIS_USE_TLS: "true"
+  REDIS_USE_TLS: "false"
+
+  # Redis Connection Pool
   REDIS_MAX_RETRIES: "3"
   REDIS_MIN_IDLE_CONNS: "10"
   REDIS_POOL_SIZE: "100"
   REDIS_POOL_TIMEOUT: "4s"
   REDIS_CONN_MAX_IDLE_TIME: "5m"
   REDIS_CONN_MAX_LIFETIME: "30m"
-  
+
   # WebSocket Configuration
   WS_PING_INTERVAL: "30s"
   WS_PONG_WAIT: "60s"
@@ -37,12 +40,11 @@ data:
   WS_READ_BUFFER_SIZE: "1024"
   WS_WRITE_BUFFER_SIZE: "1024"
   WS_MAX_CONNECTIONS: "10000"
-  
-  # Cookie Configuration (for HttpOnly authentication)
+
+  # Cookie Configuration
   COOKIE_DOMAIN: ".smap.com"
   COOKIE_SECURE: "true"
   COOKIE_SAMESITE: "Lax"
   COOKIE_MAX_AGE: "7200"
   COOKIE_MAX_AGE_REMEMBER: "2592000"
   COOKIE_NAME: "smap_auth_token"
-

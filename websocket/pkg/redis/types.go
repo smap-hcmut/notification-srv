@@ -4,8 +4,7 @@ import "time"
 
 // Config holds Redis connection configuration
 type Config struct {
-	Host     string
-	Port     int
+	Host     string // Host includes port (host:port)
 	Password string
 	DB       int
 	UseTLS   bool

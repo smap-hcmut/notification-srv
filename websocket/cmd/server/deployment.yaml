@@ -5,6 +5,7 @@ metadata:
   namespace: smap
   labels:
     app: smap-websocket
+    version: v1
 spec:
   replicas: 1
   revisionHistoryLimit: 10
@@ -13,189 +14,83 @@ spec:
       app: smap-websocket
   strategy:
     rollingUpdate:
-      maxSurge: 0
-      maxUnavailable: 1
+      maxSurge: 1
+      maxUnavailable: 0
     type: RollingUpdate
   template:
     metadata:
       labels:
         app: smap-websocket
+        version: v1
     spec:
       imagePullSecrets:
-      - name: harbor-secret
+        - name: harbor-secret
       containers:
-      - name: smap-websocket
-        image: registry.tantai.dev/smap/smap-websocket:251124-005909
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8081
-          name: http
-          protocol: TCP
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "50m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
-        env:
-        - name: WS_HOST
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: WS_HOST
-        - name: WS_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: WS_PORT
-        - name: WS_MODE
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: WS_MODE
-        - name: LOGGER_LEVEL
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: LOGGER_LEVEL
-        - name: LOGGER_MODE
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: LOGGER_MODE
-        - name: LOGGER_ENCODING
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: LOGGER_ENCODING
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              name: smap-websocket-secrets
-              key: REDIS_HOST
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              name: smap-websocket-secrets
-              key: REDIS_PORT
-        - name: REDIS_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: smap-websocket-secrets
-              key: REDIS_PASSWORD
-        - name: REDIS_DB
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: REDIS_DB
-        - name: REDIS_USE_TLS
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: REDIS_USE_TLS
-        - name: REDIS_MAX_RETRIES
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: REDIS_MAX_RETRIES
-        - name: REDIS_MIN_IDLE_CONNS
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: REDIS_MIN_IDLE_CONNS
-        - name: REDIS_POOL_SIZE
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: REDIS_POOL_SIZE
-        - name: REDIS_POOL_TIMEOUT
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: REDIS_POOL_TIMEOUT
-        - name: REDIS_CONN_MAX_IDLE_TIME
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: REDIS_CONN_MAX_IDLE_TIME
-        - name: REDIS_CONN_MAX_LIFETIME
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: REDIS_CONN_MAX_LIFETIME
-        - name: WS_PING_INTERVAL
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: WS_PING_INTERVAL
-        - name: WS_PONG_WAIT
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: WS_PONG_WAIT
-        - name: WS_WRITE_WAIT
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: WS_WRITE_WAIT
-        - name: WS_MAX_MESSAGE_SIZE
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: WS_MAX_MESSAGE_SIZE
-        - name: WS_READ_BUFFER_SIZE
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: WS_READ_BUFFER_SIZE
-        - name: WS_WRITE_BUFFER_SIZE
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: WS_WRITE_BUFFER_SIZE
-        - name: WS_MAX_CONNECTIONS
-          valueFrom:
-            configMapKeyRef:
-              name: smap-websocket-config
-              key: WS_MAX_CONNECTIONS
-        - name: JWT_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: smap-websocket-secrets
-              key: JWT_SECRET_KEY
-        - name: DISCORD_WEBHOOK_ID
-          valueFrom:
-            secretKeyRef:
-              name: smap-websocket-secrets
-              key: DISCORD_WEBHOOK_ID
-        - name: DISCORD_WEBHOOK_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: smap-websocket-secrets
-              key: DISCORD_WEBHOOK_TOKEN
-        - name: CONTAINER_NAME
-          value: "smap-websocket"
-        - name: KUBERNETES_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8081
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8081
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
+        - name: smap-websocket
+          image: registry.tantai.dev/smap/smap-websocket:251209-053303
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+              name: ws
+              protocol: TCP
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          envFrom:
+            - configMapRef:
+                name: smap-websocket-config
+            - secretRef:
+                name: smap-websocket-secrets
+          env:
+            - name: CONTAINER_NAME
+              value: "smap-websocket"
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8081
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 12
+      terminationGracePeriodSeconds: 30
 
 ---
 apiVersion: v1
@@ -209,9 +104,12 @@ spec:
   selector:
     app: smap-websocket
   ports:
-  - port: 80
-    targetPort: 8081
-    protocol: TCP
-    name: http
+    - port: 80
+      targetPort: 8081
+      protocol: TCP
+      name: ws
   type: ClusterIP
-
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
