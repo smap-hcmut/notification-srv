@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: smap-websocket-ingress
+  namespace: smap
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    # WebSocket specific configuration
+    nginx.ingress.kubernetes.io/websocket-services: "smap-websocket"
+    # Long timeouts for WebSocket connections
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    # NO rewrite - direct pass through
+    # This preserves the original path and protocol
+    # CORS disabled - WebSocket service handles its own CORS
+    nginx.ingress.kubernetes.io/enable-cors: "false"
+spec:
+  rules:
+    - host: smap-api.tantai.dev
+      http:
+        paths:
+          # WebSocket endpoint - NO rewrite, direct pass
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: smap-websocket
+                port:
+                  number: 80
