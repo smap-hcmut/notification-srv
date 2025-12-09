@@ -19,6 +19,8 @@ import (
 var productionOrigins = []string{
 	"https://smap.tantai.dev",
 	"https://smap-api.tantai.dev",
+	"http://smap.tantai.dev",     // For testing/non-HTTPS
+	"http://smap-api.tantai.dev", // For testing/non-HTTPS
 }
 
 // Private subnets allowed in dev/staging environments
