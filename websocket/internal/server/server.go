@@ -29,13 +29,12 @@ type Config struct {
 	Hub           *ws.Hub
 	RedisClient   *redis.Client
 	DiscordClient *discord.Discord
-	Subscriber    SubscriberHealthProvider
 }
 
 // New creates a new Server instance
 func New(cfg Config) *Server {
-	// Setup health and metrics routes
-	setupRoutes(cfg.Router, cfg.Logger, cfg.Hub, cfg.RedisClient, cfg.Subscriber)
+	// Setup routes
+	setupRoutes(cfg.Router, cfg.Logger, cfg.Hub, cfg.RedisClient)
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
@@ -65,14 +64,12 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 // setupRoutes sets up HTTP routes
-func setupRoutes(router *gin.Engine, logger log.Logger, hub *ws.Hub, redisClient *redis.Client, subscriber SubscriberHealthProvider) {
-	// Health check endpoint
+func setupRoutes(router *gin.Engine, logger log.Logger, hub *ws.Hub, redisClient *redis.Client) {
+	// Basic health check endpoint
 	router.GET("/health", func(c *gin.Context) {
-		healthHandler(c, logger, hub, redisClient, subscriber)
-	})
-
-	// Metrics endpoint
-	router.GET("/metrics", func(c *gin.Context) {
-		metricsHandler(c, hub)
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "healthy",
+			"service": "websocket-service",
+		})
 	})
 }

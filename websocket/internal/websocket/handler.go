@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
-	"smap-websocket/pkg/jwt"
 	"smap-websocket/pkg/log"
 )
 
@@ -124,16 +123,35 @@ func createUpgrader(environment string) websocket.Upgrader {
 	return upgrader
 }
 
+// TopicAuthorizer defines the interface for topic access authorization
+type TopicAuthorizer interface {
+	CanAccessProject(ctx context.Context, userID, projectID string) (bool, error)
+	CanAccessJob(ctx context.Context, userID, jobID string) (bool, error)
+}
+
+// ConnectionRateLimiter defines the interface for connection rate limiting
+type ConnectionRateLimiter interface {
+	CheckAndTrackConnection(ctx context.Context, userID, projectID, jobID string) error
+	UntrackConnection(userID, projectID, jobID string)
+}
+
+// JWTValidator defines the interface for JWT validation
+type JWTValidator interface {
+	ExtractUserID(tokenString string) (string, error)
+}
+
 // Handler handles WebSocket connections
 type Handler struct {
 	hub           *Hub
-	jwtValidator  *jwt.Validator
+	jwtValidator  JWTValidator
 	logger        log.Logger
 	wsConfig      WSConfig
 	redisNotifier RedisNotifier
 	cookieConfig  CookieConfig
 	environment   string
 	upgrader      websocket.Upgrader
+	authorizer    TopicAuthorizer       // Optional: topic access authorization
+	rateLimiter   ConnectionRateLimiter // Optional: connection rate limiting
 }
 
 // WSConfig holds WebSocket configuration
@@ -160,15 +178,35 @@ type RedisNotifier interface {
 	OnUserDisconnected(userID string, hasOtherConnections bool) error
 }
 
+// HandlerOptions holds optional configuration for the Handler
+type HandlerOptions struct {
+	Authorizer  TopicAuthorizer
+	RateLimiter ConnectionRateLimiter
+}
+
 // NewHandler creates a new WebSocket handler
 func NewHandler(
 	hub *Hub,
-	jwtValidator *jwt.Validator,
+	jwtValidator JWTValidator,
 	logger log.Logger,
 	wsConfig WSConfig,
 	redisNotifier RedisNotifier,
 	cookieConfig CookieConfig,
 	environment string,
+) *Handler {
+	return NewHandlerWithOptions(hub, jwtValidator, logger, wsConfig, redisNotifier, cookieConfig, environment, nil)
+}
+
+// NewHandlerWithOptions creates a new WebSocket handler with optional configuration
+func NewHandlerWithOptions(
+	hub *Hub,
+	jwtValidator JWTValidator,
+	logger log.Logger,
+	wsConfig WSConfig,
+	redisNotifier RedisNotifier,
+	cookieConfig CookieConfig,
+	environment string,
+	options *HandlerOptions,
 ) *Handler {
 	// Log CORS mode on startup
 	ctx := context.Background()
@@ -181,7 +219,7 @@ func NewHandler(
 		logger.Infof(ctx, "CORS mode: %s (permissive - allows localhost and private subnets)", environment)
 	}
 
-	return &Handler{
+	h := &Handler{
 		hub:           hub,
 		jwtValidator:  jwtValidator,
 		logger:        logger,
@@ -191,27 +229,24 @@ func NewHandler(
 		environment:   environment,
 		upgrader:      createUpgrader(environment),
 	}
+
+	if options != nil {
+		h.authorizer = options.Authorizer
+		h.rateLimiter = options.RateLimiter
+	}
+
+	return h
 }
 
 // HandleWebSocket handles WebSocket connection requests
 // Implements requirements H-01, H-02, H-03, H-04, H-05
+// FOLLOWS PROPOSAL: HttpOnly Cookie Authentication ONLY (no token fallback)
 func (h *Handler) HandleWebSocket(c *gin.Context) {
-	// H-02: Extract JWT from cookie (primary method) or query parameter (fallback)
-	// Priority: Cookie first, then query parameter for backward compatibility
+	// H-02: Extract JWT from HttpOnly cookie ONLY (as per proposal specification)
 	token, err := c.Cookie(h.cookieConfig.Name)
 	if err != nil || token == "" {
-		// Fallback to query parameter for backward compatibility
-		token = c.Query("token")
-		if token != "" {
-			h.logger.Warn(context.Background(), "WebSocket connection using deprecated query parameter authentication")
-		}
-	}
-
-	if token == "" {
-		h.logger.Warn(context.Background(), "WebSocket connection rejected: missing token")
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "missing token parameter",
-		})
+		h.logger.Warn(context.Background(), "WebSocket connection rejected: missing auth cookie")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authentication cookie"})
 		return
 	}
 
@@ -226,6 +261,69 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
+	// Parse topic filter parameters (optional)
+	projectID := c.Query("projectId")
+	jobID := c.Query("jobId")
+
+	// Validate topic parameters format
+	if err := ValidateTopicParameters(projectID, jobID); err != nil {
+		h.logger.Warnf(context.Background(), "WebSocket connection rejected: invalid topic parameters - %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// Authorization check for topic access (if authorizer is configured)
+	if h.authorizer != nil {
+		if projectID != "" {
+			allowed, err := h.authorizer.CanAccessProject(context.Background(), userID, projectID)
+			if err != nil {
+				h.logger.Errorf(context.Background(), "Authorization check failed for project %s: %v", projectID, err)
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "authorization check failed",
+				})
+				return
+			}
+			if !allowed {
+				h.logger.Warnf(context.Background(), "WebSocket connection rejected: user %s not authorized for project %s", userID, projectID)
+				c.JSON(http.StatusForbidden, gin.H{
+					"error": "not authorized to access this project",
+				})
+				return
+			}
+		}
+
+		if jobID != "" {
+			allowed, err := h.authorizer.CanAccessJob(context.Background(), userID, jobID)
+			if err != nil {
+				h.logger.Errorf(context.Background(), "Authorization check failed for job %s: %v", jobID, err)
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "authorization check failed",
+				})
+				return
+			}
+			if !allowed {
+				h.logger.Warnf(context.Background(), "WebSocket connection rejected: user %s not authorized for job %s", userID, jobID)
+				c.JSON(http.StatusForbidden, gin.H{
+					"error": "not authorized to access this job",
+				})
+				return
+			}
+		}
+	}
+
+	// Rate limiting check (if rate limiter is configured)
+	if h.rateLimiter != nil {
+		if err := h.rateLimiter.CheckAndTrackConnection(context.Background(), userID, projectID, jobID); err != nil {
+			h.logger.Warnf(context.Background(), "WebSocket connection rejected: rate limit exceeded - %v", err)
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error": "connection limit exceeded",
+			})
+			return
+		}
+	}
+
 	// H-01: Upgrade HTTP connection to WebSocket
 	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -233,16 +331,31 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// H-05: Create and register connection in Hub
-	connection := NewConnection(
-		h.hub,
-		conn,
-		userID,
-		h.wsConfig.PongWait,
-		h.wsConfig.PingPeriod,
-		h.wsConfig.WriteWait,
-		h.logger,
-	)
+	// H-05: Create and register connection in Hub with topic filters
+	var connection *Connection
+	if projectID != "" || jobID != "" {
+		connection = NewConnectionWithFilters(
+			h.hub,
+			conn,
+			userID,
+			projectID,
+			jobID,
+			h.wsConfig.PongWait,
+			h.wsConfig.PingPeriod,
+			h.wsConfig.WriteWait,
+			h.logger,
+		)
+	} else {
+		connection = NewConnection(
+			h.hub,
+			conn,
+			userID,
+			h.wsConfig.PongWait,
+			h.wsConfig.PingPeriod,
+			h.wsConfig.WriteWait,
+			h.logger,
+		)
+	}
 
 	// Register connection with hub
 	h.hub.register <- connection
@@ -257,10 +370,30 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 	// Start connection pumps (read and write)
 	connection.Start()
 
-	h.logger.Infof(context.Background(), "WebSocket connection established for user: %s", userID)
+	// Log connection with topic filter info
+	if projectID != "" || jobID != "" {
+		h.logger.Infof(context.Background(), "WebSocket connection established for user: %s (projectId: %s, jobId: %s)", userID, projectID, jobID)
+	} else {
+		h.logger.Infof(context.Background(), "WebSocket connection established for user: %s", userID)
+	}
 }
 
 // SetupRoutes sets up WebSocket routes
 func (h *Handler) SetupRoutes(router *gin.Engine) {
 	router.GET("/ws", h.HandleWebSocket)
+}
+
+// SetAuthorizer sets the topic authorizer
+func (h *Handler) SetAuthorizer(authorizer TopicAuthorizer) {
+	h.authorizer = authorizer
+}
+
+// SetRateLimiter sets the connection rate limiter
+func (h *Handler) SetRateLimiter(rateLimiter ConnectionRateLimiter) {
+	h.rateLimiter = rateLimiter
+}
+
+// GetRateLimiter returns the connection rate limiter (for cleanup callbacks)
+func (h *Handler) GetRateLimiter() ConnectionRateLimiter {
+	return h.rateLimiter
 }

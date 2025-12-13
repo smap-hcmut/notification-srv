@@ -28,6 +28,11 @@ type Hub struct {
 	totalMessagesReceived atomic.Int64
 	totalMessagesFailed   atomic.Int64
 
+	// Topic-specific metrics
+	projectMessagesSent atomic.Int64
+	jobMessagesSent     atomic.Int64
+	filteredConnections atomic.Int64 // Connections with topic filters
+
 	// Configuration
 	maxConnections int
 
@@ -99,12 +104,29 @@ func (h *Hub) registerConnection(conn *Connection) {
 	h.connections[conn.userID] = append(h.connections[conn.userID], conn)
 	h.totalConnections.Add(1)
 
-	h.logger.Infof(context.Background(),
-		"User connected: %s (total connections: %d, user connections: %d)",
-		conn.userID,
-		h.getTotalConnectionsLocked(),
-		len(h.connections[conn.userID]),
-	)
+	// Track filtered connections
+	if conn.HasTopicFilter() {
+		h.filteredConnections.Add(1)
+	}
+
+	// Log connection details including topic filters
+	if conn.HasTopicFilter() {
+		h.logger.Infof(context.Background(),
+			"User connected: %s (total connections: %d, user connections: %d, projectId: %s, jobId: %s)",
+			conn.userID,
+			h.getTotalConnectionsLocked(),
+			len(h.connections[conn.userID]),
+			conn.GetProjectID(),
+			conn.GetJobID(),
+		)
+	} else {
+		h.logger.Infof(context.Background(),
+			"User connected: %s (total connections: %d, user connections: %d)",
+			conn.userID,
+			h.getTotalConnectionsLocked(),
+			len(h.connections[conn.userID]),
+		)
+	}
 }
 
 // unregisterConnection unregisters a connection
@@ -123,6 +145,11 @@ func (h *Hub) unregisterConnection(conn *Connection) {
 			// Remove from slice
 			h.connections[conn.userID] = append(connections[:i], connections[i+1:]...)
 			h.totalConnections.Add(-1)
+
+			// Track filtered connections
+			if conn.HasTopicFilter() {
+				h.filteredConnections.Add(-1)
+			}
 
 			// Close the connection
 			close(conn.send)
@@ -203,6 +230,84 @@ func (h *Hub) SendToUser(userID string, message *Message) {
 	}
 }
 
+// SendToUserWithProject sends a message to connections subscribed to a specific project
+func (h *Hub) SendToUserWithProject(userID, projectID string, message *Message) {
+	h.mu.RLock()
+	connections := h.connections[userID]
+	h.mu.RUnlock()
+
+	if len(connections) == 0 {
+		return
+	}
+
+	data, err := message.ToJSON()
+	if err != nil {
+		h.logger.Errorf(context.Background(), "Failed to marshal message: %v", err)
+		h.totalMessagesFailed.Add(1)
+		return
+	}
+
+	// Send only to connections subscribed to this project
+	sentCount := 0
+	for _, conn := range connections {
+		if conn.MatchesProject(projectID) {
+			select {
+			case conn.send <- data:
+				sentCount++
+			default:
+				h.logger.Warnf(context.Background(), "Failed to send message to user %s (buffer full)", userID)
+				h.totalMessagesFailed.Add(1)
+			}
+		}
+	}
+
+	h.totalMessagesSent.Add(int64(sentCount))
+	h.projectMessagesSent.Add(int64(sentCount))
+	if sentCount > 0 {
+		h.totalMessagesReceived.Add(1)
+	}
+	h.logger.Debugf(context.Background(), "Sent project message to %d connections for user %s, project %s", sentCount, userID, projectID)
+}
+
+// SendToUserWithJob sends a message to connections subscribed to a specific job
+func (h *Hub) SendToUserWithJob(userID, jobID string, message *Message) {
+	h.mu.RLock()
+	connections := h.connections[userID]
+	h.mu.RUnlock()
+
+	if len(connections) == 0 {
+		return
+	}
+
+	data, err := message.ToJSON()
+	if err != nil {
+		h.logger.Errorf(context.Background(), "Failed to marshal message: %v", err)
+		h.totalMessagesFailed.Add(1)
+		return
+	}
+
+	// Send only to connections subscribed to this job
+	sentCount := 0
+	for _, conn := range connections {
+		if conn.MatchesJob(jobID) {
+			select {
+			case conn.send <- data:
+				sentCount++
+			default:
+				h.logger.Warnf(context.Background(), "Failed to send message to user %s (buffer full)", userID)
+				h.totalMessagesFailed.Add(1)
+			}
+		}
+	}
+
+	h.totalMessagesSent.Add(int64(sentCount))
+	h.jobMessagesSent.Add(int64(sentCount))
+	if sentCount > 0 {
+		h.totalMessagesReceived.Add(1)
+	}
+	h.logger.Debugf(context.Background(), "Sent job message to %d connections for user %s, job %s", sentCount, userID, jobID)
+}
+
 // closeAllConnections closes all active connections
 func (h *Hub) closeAllConnections() {
 	h.mu.Lock()
@@ -229,6 +334,9 @@ func (h *Hub) GetStats() HubStats {
 		TotalMessagesSent:     h.totalMessagesSent.Load(),
 		TotalMessagesReceived: h.totalMessagesReceived.Load(),
 		TotalMessagesFailed:   h.totalMessagesFailed.Load(),
+		ProjectMessagesSent:   h.projectMessagesSent.Load(),
+		JobMessagesSent:       h.jobMessagesSent.Load(),
+		FilteredConnections:   h.filteredConnections.Load(),
 	}
 }
 
@@ -265,4 +373,8 @@ type HubStats struct {
 	TotalMessagesSent     int64 `json:"total_messages_sent"`
 	TotalMessagesReceived int64 `json:"total_messages_received"`
 	TotalMessagesFailed   int64 `json:"total_messages_failed"`
+	// Topic-specific metrics
+	ProjectMessagesSent int64 `json:"project_messages_sent"`
+	JobMessagesSent     int64 `json:"job_messages_sent"`
+	FilteredConnections int64 `json:"filtered_connections"`
 }

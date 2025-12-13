@@ -2,13 +2,12 @@ package main
 
 import (
 	"fmt"
-	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func TestGenerateToken(t *testing.T) {
+func main() {
 	// Secret key (must match JWT_SECRET_KEY in .env)
 	secretKey := "my-super-secret-jwt-key-for-testing-change-in-production"
 

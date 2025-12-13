@@ -6,14 +6,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"testing"
 
 	"github.com/gorilla/websocket"
 )
 
 // Example WebSocket client for testing
-// Usage: go test -run TestClientExample tests/client_example.go <JWT_TOKEN>
-func TestClientExample(t *testing.T) {
+// Usage: go run client_example.go <JWT_TOKEN>
+func main() {
 	if len(os.Args) < 2 {
 		log.Fatal("Usage: go run client_example.go <JWT_TOKEN>")
 	}

@@ -140,7 +140,6 @@ func main() {
 		Hub:           hub,
 		RedisClient:   redisClient,
 		DiscordClient: discordClient,
-		Subscriber:    subscriber,
 	})
 
 	// Start server in a goroutine
