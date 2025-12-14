@@ -10,19 +10,19 @@ type ProjectNotificationMessage struct {
 
 // JobNotificationMessage represents the standardized output structure for job notifications
 type JobNotificationMessage struct {
-	Platform Platform    `json:"platform"`           // Social media platform enum
-	Status   JobStatus   `json:"status"`             // Current job processing status
-	Batch    *BatchData  `json:"batch,omitempty"`    // Current batch crawl results (omit if empty)
-	Progress *Progress   `json:"progress,omitempty"` // Overall job progress statistics (omit if empty)
+	Platform Platform   `json:"platform"`           // Social media platform enum
+	Status   JobStatus  `json:"status"`             // Current job processing status
+	Batch    *BatchData `json:"batch,omitempty"`    // Current batch crawl results (omit if empty)
+	Progress *Progress  `json:"progress,omitempty"` // Overall job progress statistics (omit if empty)
 }
 
 // Progress represents progress information in standardized output format
 type Progress struct {
-	Current    int      `json:"current"`     // Current completed items
-	Total      int      `json:"total"`       // Total items to process
-	Percentage float64  `json:"percentage"`  // Completion percentage (0-100)
-	ETA        float64  `json:"eta"`         // Estimated time remaining in minutes
-	Errors     []string `json:"errors"`      // Array of error messages encountered
+	Current    int      `json:"current"`    // Current completed items
+	Total      int      `json:"total"`      // Total items to process
+	Percentage float64  `json:"percentage"` // Completion percentage (0-100)
+	ETA        float64  `json:"eta"`        // Estimated time remaining in minutes
+	Errors     []string `json:"errors"`     // Array of error messages encountered
 }
 
 // BatchData represents a batch of crawled content in standardized output format
@@ -34,13 +34,13 @@ type BatchData struct {
 
 // ContentItem represents a single social media content item in standardized output format
 type ContentItem struct {
-	ID          string            `json:"id"`           // Content unique ID
-	Text        string            `json:"text"`         // Content text/caption
-	Author      AuthorInfo        `json:"author"`       // Author information
-	Metrics     EngagementMetrics `json:"metrics"`      // Engagement statistics
-	Media       *MediaInfo        `json:"media,omitempty"`       // Media information (if any)
-	PublishedAt string            `json:"published_at"` // When content was published (ISO timestamp)
-	Permalink   string            `json:"permalink"`    // Direct link to content
+	ID          string            `json:"id"`              // Content unique ID
+	Text        string            `json:"text"`            // Content text/caption
+	Author      AuthorInfo        `json:"author"`          // Author information
+	Metrics     EngagementMetrics `json:"metrics"`         // Engagement statistics
+	Media       *MediaInfo        `json:"media,omitempty"` // Media information (if any)
+	PublishedAt string            `json:"published_at"`    // When content was published (ISO timestamp)
+	Permalink   string            `json:"permalink"`       // Direct link to content
 }
 
 // AuthorInfo represents content author details in standardized output format
@@ -64,61 +64,64 @@ type EngagementMetrics struct {
 
 // MediaInfo represents media content details in standardized output format
 type MediaInfo struct {
-	Type      string `json:"type"`                 // "video", "image", "audio"
-	Duration  int    `json:"duration,omitempty"`   // Duration in seconds (for video/audio)
-	Thumbnail string `json:"thumbnail"`            // Thumbnail/preview URL
-	URL       string `json:"url"`                  // Media file URL
+	Type      string `json:"type"`               // "video", "image", "audio"
+	Duration  int    `json:"duration,omitempty"` // Duration in seconds (for video/audio)
+	Thumbnail string `json:"thumbnail"`          // Thumbnail/preview URL
+	URL       string `json:"url"`                // Media file URL
 }
 
 // Validate validates the project notification message
 func (p *ProjectNotificationMessage) Validate() error {
-	if p.Status == "" {
-		return ErrMissingRequiredField("status")
+	// status is optional - Project status may not be in message format
+	// Collector Service manages status in Redis, may not push to crawler
+	// If status is provided, validate it; otherwise allow empty
+	if p.Status != "" {
+		if !IsValidProjectStatus(string(p.Status)) {
+			return ErrInvalidStatus(string(p.Status))
+		}
 	}
-	
-	if !IsValidProjectStatus(string(p.Status)) {
-		return ErrInvalidStatus(string(p.Status))
-	}
-	
+
 	if p.Progress != nil {
 		if err := p.Progress.Validate(); err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
 // Validate validates the job notification message
 func (j *JobNotificationMessage) Validate() error {
+	// platform is required - should be in meta.platform of payload items
 	if j.Platform == "" {
 		return ErrMissingRequiredField("platform")
 	}
-	
+
 	if !IsValidPlatform(string(j.Platform)) {
 		return ErrInvalidPlatform(string(j.Platform))
 	}
-	
-	if j.Status == "" {
-		return ErrMissingRequiredField("status")
+
+	// status is optional - Job status may not be at top level in message format
+	// Message may only have success boolean, not Job.status
+	// If status is provided, validate it; otherwise allow empty
+	if j.Status != "" {
+		if !IsValidJobStatus(string(j.Status)) {
+			return ErrInvalidStatus(string(j.Status))
+		}
 	}
-	
-	if !IsValidJobStatus(string(j.Status)) {
-		return ErrInvalidStatus(string(j.Status))
-	}
-	
+
 	if j.Progress != nil {
 		if err := j.Progress.Validate(); err != nil {
 			return err
 		}
 	}
-	
+
 	if j.Batch != nil {
 		if err := j.Batch.Validate(); err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -127,23 +130,23 @@ func (p *Progress) Validate() error {
 	if p.Current < 0 {
 		return ErrInvalidValue("current", "must be non-negative")
 	}
-	
+
 	if p.Total < 0 {
 		return ErrInvalidValue("total", "must be non-negative")
 	}
-	
+
 	if p.Current > p.Total {
 		return ErrInvalidValue("current", "cannot exceed total")
 	}
-	
+
 	if p.Percentage < 0 || p.Percentage > 100 {
 		return ErrInvalidValue("percentage", "must be between 0 and 100")
 	}
-	
+
 	if p.ETA < 0 {
 		return ErrInvalidValue("eta", "must be non-negative")
 	}
-	
+
 	return nil
 }
 
@@ -152,18 +155,18 @@ func (b *BatchData) Validate() error {
 	if b.Keyword == "" {
 		return ErrMissingRequiredField("keyword")
 	}
-	
+
 	if b.CrawledAt == "" {
 		return ErrMissingRequiredField("crawled_at")
 	}
-	
+
 	// Validate each content item
 	for i, content := range b.ContentList {
 		if err := content.Validate(); err != nil {
 			return ErrInvalidArrayItem("content_list", i, err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -172,33 +175,33 @@ func (c *ContentItem) Validate() error {
 	if c.ID == "" {
 		return ErrMissingRequiredField("id")
 	}
-	
+
 	if c.Text == "" {
 		return ErrMissingRequiredField("text")
 	}
-	
+
 	if err := c.Author.Validate(); err != nil {
 		return ErrInvalidField("author", err)
 	}
-	
+
 	if err := c.Metrics.Validate(); err != nil {
 		return ErrInvalidField("metrics", err)
 	}
-	
+
 	if c.Media != nil {
 		if err := c.Media.Validate(); err != nil {
 			return ErrInvalidField("media", err)
 		}
 	}
-	
+
 	if c.PublishedAt == "" {
 		return ErrMissingRequiredField("published_at")
 	}
-	
+
 	if c.Permalink == "" {
 		return ErrMissingRequiredField("permalink")
 	}
-	
+
 	return nil
 }
 
@@ -207,23 +210,22 @@ func (a *AuthorInfo) Validate() error {
 	if a.ID == "" {
 		return ErrMissingRequiredField("id")
 	}
-	
+
 	if a.Username == "" {
 		return ErrMissingRequiredField("username")
 	}
-	
+
 	if a.Name == "" {
 		return ErrMissingRequiredField("name")
 	}
-	
+
 	if a.Followers < 0 {
 		return ErrInvalidValue("followers", "must be non-negative")
 	}
-	
-	if a.AvatarURL == "" {
-		return ErrMissingRequiredField("avatar_url")
-	}
-	
+
+	// avatar_url is optional - allow empty string
+	// If missing, UI can use a default placeholder avatar
+
 	return nil
 }
 
@@ -232,23 +234,23 @@ func (e *EngagementMetrics) Validate() error {
 	if e.Views < 0 {
 		return ErrInvalidValue("views", "must be non-negative")
 	}
-	
+
 	if e.Likes < 0 {
 		return ErrInvalidValue("likes", "must be non-negative")
 	}
-	
+
 	if e.Comments < 0 {
 		return ErrInvalidValue("comments", "must be non-negative")
 	}
-	
+
 	if e.Shares < 0 {
 		return ErrInvalidValue("shares", "must be non-negative")
 	}
-	
+
 	if e.Rate < 0 {
 		return ErrInvalidValue("rate", "must be non-negative")
 	}
-	
+
 	return nil
 }
 
@@ -257,7 +259,7 @@ func (m *MediaInfo) Validate() error {
 	if m.Type == "" {
 		return ErrMissingRequiredField("type")
 	}
-	
+
 	// Validate media type
 	validTypes := []string{"video", "image", "audio"}
 	isValid := false
@@ -267,23 +269,21 @@ func (m *MediaInfo) Validate() error {
 			break
 		}
 	}
-	
+
 	if !isValid {
 		return ErrInvalidValue("type", "must be video, image, or audio")
 	}
-	
+
 	if m.Duration < 0 {
 		return ErrInvalidValue("duration", "must be non-negative")
 	}
-	
-	if m.Thumbnail == "" {
-		return ErrMissingRequiredField("thumbnail")
-	}
-	
-	if m.URL == "" {
-		return ErrMissingRequiredField("url")
-	}
-	
+
+	// thumbnail is optional - crawler may not provide it (currently always null)
+	// UI can use a default placeholder thumbnail if missing
+
+	// url is optional - crawler may only provide video_path/audio_path (MinIO path)
+	// not public URL. UI can construct URL from path if needed.
+
 	return nil
 }
 
