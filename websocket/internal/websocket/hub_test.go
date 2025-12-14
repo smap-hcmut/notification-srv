@@ -75,7 +75,8 @@ func TestHubSendToUserWithProject(t *testing.T) {
 
 	// Send message to project
 	msg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{"status": "completed"})
-	hub.SendToUserWithProject(userID, projectID, msg)
+	msgBytes, _ := msg.ToJSON()
+	hub.SendToUserWithProject(userID, projectID, msgBytes)
 
 	// Wait for message delivery
 	time.Sleep(50 * time.Millisecond)
@@ -160,7 +161,8 @@ func TestHubSendToUserWithJob(t *testing.T) {
 
 	// Send message to job
 	msg, _ := NewMessage(MessageTypeJobCompleted, map[string]interface{}{"status": "completed"})
-	hub.SendToUserWithJob(userID, jobID, msg)
+	msgBytes, _ := msg.ToJSON()
+	hub.SendToUserWithJob(userID, jobID, msgBytes)
 
 	// Wait for message delivery
 	time.Sleep(50 * time.Millisecond)
@@ -257,7 +259,8 @@ func TestHubSendToUserWithProjectNoConnections(t *testing.T) {
 
 	// Send message to non-existent user - should not panic
 	msg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{"status": "completed"})
-	hub.SendToUserWithProject("nonexistent", "proj123", msg)
+	msgBytes, _ := msg.ToJSON()
+	hub.SendToUserWithProject("nonexistent", "proj123", msgBytes)
 
 	// If we get here without panic, test passes
 }
@@ -272,7 +275,8 @@ func TestHubSendToUserWithJobNoConnections(t *testing.T) {
 
 	// Send message to non-existent user - should not panic
 	msg, _ := NewMessage(MessageTypeJobCompleted, map[string]interface{}{"status": "completed"})
-	hub.SendToUserWithJob("nonexistent", "job123", msg)
+	msgBytes, _ := msg.ToJSON()
+	hub.SendToUserWithJob("nonexistent", "job123", msgBytes)
 
 	// If we get here without panic, test passes
 }

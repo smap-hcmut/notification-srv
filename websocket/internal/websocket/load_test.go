@@ -71,8 +71,8 @@ func TestLoadTopicMessageFiltering(t *testing.T) {
 						"messageID": msgID,
 						"userID":    userIDStr,
 					})
-
-					hub.SendToUserWithProject(userIDStr, projectID, msg)
+					msgBytes, _ := msg.ToJSON()
+					hub.SendToUserWithProject(userIDStr, projectID, msgBytes)
 				}
 			}(userID)
 		}
@@ -216,9 +216,10 @@ func TestMessageFilteringLatency(t *testing.T) {
 		msg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
 			"messageID": i,
 		})
+		msgBytes, _ := msg.ToJSON()
 
 		start := time.Now()
-		hub.SendToUserWithProject("testuser", projectID, msg)
+		hub.SendToUserWithProject("testuser", projectID, msgBytes)
 		latency := time.Since(start)
 		latencies = append(latencies, latency)
 	}
@@ -295,6 +296,7 @@ func BenchmarkTopicMessageRouting(b *testing.B) {
 	msg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
 		"status": "completed",
 	})
+	msgBytes, _ := msg.ToJSON()
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
@@ -302,7 +304,7 @@ func BenchmarkTopicMessageRouting(b *testing.B) {
 		for pb.Next() {
 			userID := fmt.Sprintf("user%d", i%10)
 			projectID := fmt.Sprintf("proj%d", i%5)
-			hub.SendToUserWithProject(userID, projectID, msg)
+			hub.SendToUserWithProject(userID, projectID, msgBytes)
 			i++
 		}
 	})

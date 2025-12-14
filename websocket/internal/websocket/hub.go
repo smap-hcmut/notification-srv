@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"smap-websocket/pkg/log"
 )
@@ -218,20 +217,8 @@ func (h *Hub) broadcastToUser(msg *BroadcastMessage) {
 }
 
 // SendToUser sends a message to a specific user
-func (h *Hub) SendToUser(userID string, message *Message) {
-	select {
-	case h.broadcast <- &BroadcastMessage{
-		UserID:  userID,
-		Message: message,
-	}:
-	case <-time.After(time.Second):
-		h.logger.Warnf(context.Background(), "Timeout sending message to user %s", userID)
-		h.totalMessagesFailed.Add(1)
-	}
-}
-
-// SendToUserWithProject sends a message to connections subscribed to a specific project
-func (h *Hub) SendToUserWithProject(userID, projectID string, message *Message) {
+// data is the marshaled message (can be JobNotificationMessage, ProjectNotificationMessage, or legacy Message)
+func (h *Hub) SendToUser(userID string, data []byte) {
 	h.mu.RLock()
 	connections := h.connections[userID]
 	h.mu.RUnlock()
@@ -240,10 +227,33 @@ func (h *Hub) SendToUserWithProject(userID, projectID string, message *Message) 
 		return
 	}
 
-	data, err := message.ToJSON()
-	if err != nil {
-		h.logger.Errorf(context.Background(), "Failed to marshal message: %v", err)
-		h.totalMessagesFailed.Add(1)
+	// Send to all user's connections
+	sentCount := 0
+	for _, conn := range connections {
+		select {
+		case conn.send <- data:
+			sentCount++
+		default:
+			// Connection's send buffer is full, skip
+			h.logger.Warnf(context.Background(), "Failed to send message to user %s (buffer full)", userID)
+			h.totalMessagesFailed.Add(1)
+		}
+	}
+
+	h.totalMessagesSent.Add(int64(sentCount))
+	if sentCount > 0 {
+		h.totalMessagesReceived.Add(1)
+	}
+}
+
+// SendToUserWithProject sends a message to connections subscribed to a specific project
+// data is the marshaled ProjectNotificationMessage (no wrapper)
+func (h *Hub) SendToUserWithProject(userID, projectID string, data []byte) {
+	h.mu.RLock()
+	connections := h.connections[userID]
+	h.mu.RUnlock()
+
+	if len(connections) == 0 {
 		return
 	}
 
@@ -270,19 +280,13 @@ func (h *Hub) SendToUserWithProject(userID, projectID string, message *Message) 
 }
 
 // SendToUserWithJob sends a message to connections subscribed to a specific job
-func (h *Hub) SendToUserWithJob(userID, jobID string, message *Message) {
+// data is the marshaled JobNotificationMessage (no wrapper)
+func (h *Hub) SendToUserWithJob(userID, jobID string, data []byte) {
 	h.mu.RLock()
 	connections := h.connections[userID]
 	h.mu.RUnlock()
 
 	if len(connections) == 0 {
-		return
-	}
-
-	data, err := message.ToJSON()
-	if err != nil {
-		h.logger.Errorf(context.Background(), "Failed to marshal message: %v", err)
-		h.totalMessagesFailed.Add(1)
 		return
 	}
 

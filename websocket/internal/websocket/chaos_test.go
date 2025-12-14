@@ -179,7 +179,8 @@ func TestChaosRedisFailures(t *testing.T) {
 			msg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
 				"messageID": i,
 			})
-			hub.SendToUserWithProject("stableuser", "stableproject", msg)
+			msgBytes, _ := msg.ToJSON()
+			hub.SendToUserWithProject("stableuser", "stableproject", msgBytes)
 
 			// Small delay to simulate real message timing
 			time.Sleep(time.Millisecond)
@@ -311,7 +312,8 @@ func TestHubRecoveryFromFailures(t *testing.T) {
 			msg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
 				"messageID": i,
 			})
-			hub.SendToUserWithProject("memoryuser", "memoryproject", msg)
+			msgBytes, _ := msg.ToJSON()
+			hub.SendToUserWithProject("memoryuser", "memoryproject", msgBytes)
 		}
 
 		// Wait for processing

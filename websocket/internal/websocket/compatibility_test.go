@@ -56,19 +56,22 @@ func TestBackwardCompatibility(t *testing.T) {
 		legacyMsg, _ := NewMessage(MessageTypeNotification, map[string]interface{}{
 			"message": "legacy notification",
 		})
-		hub.SendToUser("legacyuser", legacyMsg)
+		legacyMsgBytes, _ := legacyMsg.ToJSON()
+		hub.SendToUser("legacyuser", legacyMsgBytes)
 
 		// New method: SendToUserWithProject (should also work for legacy clients)
 		projectMsg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "completed",
 		})
-		hub.SendToUserWithProject("legacyuser", "someproject", projectMsg)
+		projectMsgBytes, _ := projectMsg.ToJSON()
+		hub.SendToUserWithProject("legacyuser", "someproject", projectMsgBytes)
 
 		// New method: SendToUserWithJob (should also work for legacy clients)
 		jobMsg, _ := NewMessage(MessageTypeJobCompleted, map[string]interface{}{
 			"status": "completed",
 		})
-		hub.SendToUserWithJob("legacyuser", "somejob", jobMsg)
+		jobMsgBytes, _ := jobMsg.ToJSON()
+		hub.SendToUserWithJob("legacyuser", "somejob", jobMsgBytes)
 
 		// Legacy client should receive ALL messages (no filtering)
 		messages := make([]Message, 0, 3)
@@ -126,13 +129,15 @@ func TestBackwardCompatibility(t *testing.T) {
 		projectMsg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "completed",
 		})
-		hub.SendToUserWithProject("legacyuser", "testproject", projectMsg)
+		projectMsgBytes, _ := projectMsg.ToJSON()
+		hub.SendToUserWithProject("legacyuser", "testproject", projectMsgBytes)
 
 		// Send different project message
 		otherProjectMsg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "failed",
 		})
-		hub.SendToUserWithProject("legacyuser", "otherproject", otherProjectMsg)
+		otherProjectMsgBytes, _ := otherProjectMsg.ToJSON()
+		hub.SendToUserWithProject("legacyuser", "otherproject", otherProjectMsgBytes)
 
 		// Legacy client should receive BOTH messages
 		legacyMessages := 0
@@ -183,7 +188,8 @@ func TestBackwardCompatibility(t *testing.T) {
 		}
 
 		legacyMsg, _ := NewMessage(MessageTypeNotification, legacyPayload)
-		hub.SendToUser("legacyuser", legacyMsg)
+		legacyMsgBytes, _ := legacyMsg.ToJSON()
+		hub.SendToUser("legacyuser", legacyMsgBytes)
 
 		// Read and verify message structure
 		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
@@ -299,7 +305,8 @@ func TestAPICompatibility(t *testing.T) {
 		msg, _ := NewMessage(MessageTypeNotification, map[string]interface{}{
 			"message": "test",
 		})
-		hub.SendToUser("apiuser", msg)
+		msgBytes, _ := msg.ToJSON()
+		hub.SendToUser("apiuser", msgBytes)
 
 		// Verify message was sent
 		select {

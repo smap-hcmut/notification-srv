@@ -124,7 +124,8 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 		msg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "completed",
 		})
-		hub.SendToUserWithProject("user123", "proj1", msg)
+		msgBytes, _ := msg.ToJSON()
+		hub.SendToUserWithProject("user123", "proj1", msgBytes)
 
 		// Read message from WebSocket
 		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
@@ -175,7 +176,8 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 		msg, _ := NewMessage(MessageTypeJobCompleted, map[string]interface{}{
 			"status": "completed",
 		})
-		hub.SendToUserWithJob("user123", "job1", msg)
+		msgBytes, _ := msg.ToJSON()
+		hub.SendToUserWithJob("user123", "job1", msgBytes)
 
 		// Read message from WebSocket
 		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
@@ -216,7 +218,8 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 		projMsg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "completed",
 		})
-		hub.SendToUserWithProject("user123", "proj1", projMsg)
+		projMsgBytes, _ := projMsg.ToJSON()
+		hub.SendToUserWithProject("user123", "proj1", projMsgBytes)
 
 		// conn1 should receive the message
 		conn1.SetReadDeadline(time.Now().Add(2 * time.Second))
@@ -247,12 +250,14 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 		projMsg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "completed",
 		})
-		hub.SendToUserWithProject("user123", "proj1", projMsg)
+		projMsgBytes, _ := projMsg.ToJSON()
+		hub.SendToUserWithProject("user123", "proj1", projMsgBytes)
 
 		jobMsg, _ := NewMessage(MessageTypeJobCompleted, map[string]interface{}{
 			"status": "completed",
 		})
-		hub.SendToUserWithJob("user123", "job1", jobMsg)
+		jobMsgBytes, _ := jobMsg.ToJSON()
+		hub.SendToUserWithJob("user123", "job1", jobMsgBytes)
 
 		// Should receive both messages (no filtering)
 		conn.SetReadDeadline(time.Now().Add(2 * time.Second))

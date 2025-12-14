@@ -184,15 +184,22 @@ func (s *Subscriber) handleLegacyUserNotification(channel string, payload string
 		}
 	}
 
-	// Create WebSocket message
+	// Create WebSocket message (legacy format - still wrapped)
 	wsMsg := &ws.Message{
 		Type:      ws.MessageType(redisMsg.Type),
 		Payload:   redisMsg.Payload,
 		Timestamp: time.Now(),
 	}
 
+	// Marshal legacy message to JSON
+	legacyBytes, err := json.Marshal(wsMsg)
+	if err != nil {
+		s.logger.Errorf(s.ctx, "Failed to marshal legacy message: %v", err)
+		return
+	}
+
 	// Send to Hub for delivery (legacy behavior - all connections)
-	s.hub.SendToUser(userID, wsMsg)
+	s.hub.SendToUser(userID, legacyBytes)
 
 	s.logger.Debugf(s.ctx, "Routed legacy message to user %s (type: %s)", userID, redisMsg.Type)
 }
@@ -217,21 +224,15 @@ func (s *Subscriber) handleTopicNotification(channel string, payload string) {
 		return
 	}
 
-	// Create WebSocket message with transformed payload
+	// Marshal transformed message directly (no wrapper)
 	transformedBytes, err := json.Marshal(transformedMsg)
 	if err != nil {
 		s.logger.Errorf(s.ctx, "Failed to marshal transformed message: %v", err)
 		return
 	}
 
-	wsMsg := &ws.Message{
-		Type:      s.getWebSocketMessageType(topicType),
-		Payload:   transformedBytes,
-		Timestamp: time.Now(),
-	}
-
-	// Send to Hub with topic-based routing
-	s.routeTopicMessage(topicType, topicID, userID, wsMsg)
+	// Send to Hub with topic-based routing (send raw JSON bytes)
+	s.routeTopicMessage(topicType, topicID, userID, transformedBytes)
 
 	s.logger.Debugf(s.ctx, "Routed %s message to user %s for %s %s",
 		topicType, userID, topicType, topicID)
@@ -242,34 +243,23 @@ func (s *Subscriber) parseTopicChannel(channel string) (topicType, topicID, user
 	return transform.ValidateTopicFormat(channel)
 }
 
-// getWebSocketMessageType maps topic type to WebSocket message type
-func (s *Subscriber) getWebSocketMessageType(topicType string) ws.MessageType {
-	switch topicType {
-	case "project":
-		return ws.MessageTypeProjectProgress
-	case "job":
-		return ws.MessageTypeJobProgress
-	default:
-		return ws.MessageTypeNotification
-	}
-}
-
 // routeTopicMessage routes message based on topic type
-func (s *Subscriber) routeTopicMessage(topicType, topicID, userID string, wsMsg *ws.Message) {
+// transformedBytes is the marshaled JobNotificationMessage or ProjectNotificationMessage
+func (s *Subscriber) routeTopicMessage(topicType, topicID, userID string, transformedBytes []byte) {
 	switch topicType {
 	case "project":
-		// Send to project-specific connections using the implemented method
-		s.hub.SendToUserWithProject(userID, topicID, wsMsg)
+		// Send to project-specific connections (sends ProjectNotificationMessage directly)
+		s.hub.SendToUserWithProject(userID, topicID, transformedBytes)
 		s.logger.Debugf(s.ctx, "Sent project message to user %s for project %s", userID, topicID)
 
 	case "job":
-		// Send to job-specific connections using the implemented method
-		s.hub.SendToUserWithJob(userID, topicID, wsMsg)
+		// Send to job-specific connections (sends JobNotificationMessage directly)
+		s.hub.SendToUserWithJob(userID, topicID, transformedBytes)
 		s.logger.Debugf(s.ctx, "Sent job message to user %s for job %s", userID, topicID)
 
 	default:
 		// Fallback for unknown topic types
-		s.hub.SendToUser(userID, wsMsg)
+		s.hub.SendToUser(userID, transformedBytes)
 		s.logger.Debugf(s.ctx, "Sent general message to user %s", userID)
 	}
 }
