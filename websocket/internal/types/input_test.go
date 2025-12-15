@@ -34,12 +34,11 @@ func TestProjectInputMessage_Validate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "missing status",
+			name: "missing status is valid (status is optional)",
 			msg: ProjectInputMessage{
 				Progress: &ProgressInput{},
 			},
-			wantErr: true,
-			errMsg:  "missing required field: status",
+			wantErr: false,
 		},
 		{
 			name: "invalid status",
@@ -118,12 +117,11 @@ func TestJobInputMessage_Validate(t *testing.T) {
 			errMsg:  "invalid platform: FACEBOOK",
 		},
 		{
-			name: "missing status",
+			name: "missing status is valid (status is optional)",
 			msg: JobInputMessage{
 				Platform: "TIKTOK",
 			},
-			wantErr: true,
-			errMsg:  "missing required field: status",
+			wantErr: false,
 		},
 		{
 			name: "invalid status",
@@ -494,5 +492,329 @@ func TestJobInputMessage_ToJSON(t *testing.T) {
 	}
 	if parsed.Status != msg.Status {
 		t.Errorf("Status = %v, want %v", parsed.Status, msg.Status)
+	}
+}
+
+// ============================================================================
+// Phase-Based Progress Type Tests
+// ============================================================================
+
+func TestPhaseProgressInput_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   PhaseProgressInput
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid phase progress",
+			input: PhaseProgressInput{
+				Total:           100,
+				Done:            50,
+				Errors:          2,
+				ProgressPercent: 50.0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "negative total",
+			input: PhaseProgressInput{
+				Total: -1,
+				Done:  0,
+			},
+			wantErr: true,
+			errMsg:  "invalid value for total: must be non-negative",
+		},
+		{
+			name: "negative done",
+			input: PhaseProgressInput{
+				Total: 100,
+				Done:  -1,
+			},
+			wantErr: true,
+			errMsg:  "invalid value for done: must be non-negative",
+		},
+		{
+			name: "done exceeds total",
+			input: PhaseProgressInput{
+				Total: 100,
+				Done:  150,
+			},
+			wantErr: true,
+			errMsg:  "invalid value for done: cannot exceed total",
+		},
+		{
+			name: "done exceeds total but total is 0 (allowed)",
+			input: PhaseProgressInput{
+				Total:           0,
+				Done:            5,
+				ProgressPercent: 0,
+			},
+			wantErr: false, // When total is 0, done can be anything
+		},
+		{
+			name: "negative errors",
+			input: PhaseProgressInput{
+				Total:  100,
+				Done:   50,
+				Errors: -1,
+			},
+			wantErr: true,
+			errMsg:  "invalid value for errors: must be non-negative",
+		},
+		{
+			name: "invalid progress percent below 0",
+			input: PhaseProgressInput{
+				Total:           100,
+				Done:            50,
+				ProgressPercent: -1.0,
+			},
+			wantErr: true,
+			errMsg:  "invalid value for progress_percent: must be between 0 and 100",
+		},
+		{
+			name: "invalid progress percent above 100",
+			input: PhaseProgressInput{
+				Total:           100,
+				Done:            50,
+				ProgressPercent: 150.0,
+			},
+			wantErr: true,
+			errMsg:  "invalid value for progress_percent: must be between 0 and 100",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PhaseProgressInput.Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.errMsg != "" && err.Error() != tt.errMsg {
+				t.Errorf("PhaseProgressInput.Validate() error = %v, want %v", err.Error(), tt.errMsg)
+			}
+		})
+	}
+}
+
+func TestProjectPhaseInputMessage_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   ProjectPhaseInputMessage
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid project_progress message",
+			input: ProjectPhaseInputMessage{
+				Type: "project_progress",
+				Payload: ProjectPhasePayloadInput{
+					ProjectID: "proj_123",
+					Status:    "PROCESSING",
+					Crawl: &PhaseProgressInput{
+						Total: 100, Done: 80, Errors: 2, ProgressPercent: 82.0,
+					},
+					Analyze: &PhaseProgressInput{
+						Total: 78, Done: 45, Errors: 1, ProgressPercent: 59.0,
+					},
+					OverallProgressPercent: 70.5,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid project_completed message",
+			input: ProjectPhaseInputMessage{
+				Type: "project_completed",
+				Payload: ProjectPhasePayloadInput{
+					ProjectID:              "proj_123",
+					Status:                 "DONE",
+					OverallProgressPercent: 100.0,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid type",
+			input: ProjectPhaseInputMessage{
+				Type: "invalid_type",
+				Payload: ProjectPhasePayloadInput{
+					ProjectID: "proj_123",
+					Status:    "PROCESSING",
+				},
+			},
+			wantErr: true,
+			errMsg:  "invalid value for type: must be project_progress or project_completed",
+		},
+		{
+			name: "missing project_id",
+			input: ProjectPhaseInputMessage{
+				Type: "project_progress",
+				Payload: ProjectPhasePayloadInput{
+					Status: "PROCESSING",
+				},
+			},
+			wantErr: true,
+			errMsg:  "missing required field: project_id",
+		},
+		{
+			name: "invalid status",
+			input: ProjectPhaseInputMessage{
+				Type: "project_progress",
+				Payload: ProjectPhasePayloadInput{
+					ProjectID: "proj_123",
+					Status:    "INVALID_STATUS",
+				},
+			},
+			wantErr: true,
+			errMsg:  "invalid status: INVALID_STATUS",
+		},
+		{
+			name: "invalid overall progress percent",
+			input: ProjectPhaseInputMessage{
+				Type: "project_progress",
+				Payload: ProjectPhasePayloadInput{
+					ProjectID:              "proj_123",
+					Status:                 "PROCESSING",
+					OverallProgressPercent: 150.0,
+				},
+			},
+			wantErr: true,
+			errMsg:  "invalid value for overall_progress_percent: must be between 0 and 100",
+		},
+		{
+			name: "valid with INITIALIZING status",
+			input: ProjectPhaseInputMessage{
+				Type: "project_progress",
+				Payload: ProjectPhasePayloadInput{
+					ProjectID:              "proj_123",
+					Status:                 "INITIALIZING",
+					OverallProgressPercent: 0,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid with FAILED status",
+			input: ProjectPhaseInputMessage{
+				Type: "project_completed",
+				Payload: ProjectPhasePayloadInput{
+					ProjectID:              "proj_123",
+					Status:                 "FAILED",
+					OverallProgressPercent: 50.0,
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ProjectPhaseInputMessage.Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.errMsg != "" && err.Error() != tt.errMsg {
+				t.Errorf("ProjectPhaseInputMessage.Validate() error = %v, want %v", err.Error(), tt.errMsg)
+			}
+		})
+	}
+}
+
+func TestIsPhaseBasedMessage(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload string
+		want    bool
+	}{
+		{
+			name:    "project_progress message",
+			payload: `{"type": "project_progress", "payload": {}}`,
+			want:    true,
+		},
+		{
+			name:    "project_completed message",
+			payload: `{"type": "project_completed", "payload": {}}`,
+			want:    true,
+		},
+		{
+			name:    "legacy message without type",
+			payload: `{"status": "PROCESSING", "progress": {}}`,
+			want:    false,
+		},
+		{
+			name:    "message with different type",
+			payload: `{"type": "notification", "payload": {}}`,
+			want:    false,
+		},
+		{
+			name:    "invalid JSON",
+			payload: `invalid json`,
+			want:    false,
+		},
+		{
+			name:    "empty JSON object",
+			payload: `{}`,
+			want:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsPhaseBasedMessage([]byte(tt.payload))
+			if got != tt.want {
+				t.Errorf("IsPhaseBasedMessage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestProjectPhaseInputMessage_ToJSON(t *testing.T) {
+	msg := ProjectPhaseInputMessage{
+		Type: "project_progress",
+		Payload: ProjectPhasePayloadInput{
+			ProjectID: "proj_xyz",
+			Status:    "PROCESSING",
+			Crawl: &PhaseProgressInput{
+				Total:           100,
+				Done:            80,
+				Errors:          2,
+				ProgressPercent: 82.0,
+			},
+			Analyze: &PhaseProgressInput{
+				Total:           78,
+				Done:            45,
+				Errors:          1,
+				ProgressPercent: 59.0,
+			},
+			OverallProgressPercent: 70.5,
+		},
+	}
+
+	data, err := msg.ToJSON()
+	if err != nil {
+		t.Fatalf("ProjectPhaseInputMessage.ToJSON() error = %v", err)
+	}
+
+	// Verify JSON is valid
+	var parsed ProjectPhaseInputMessage
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+
+	// Verify content
+	if parsed.Type != msg.Type {
+		t.Errorf("Type = %v, want %v", parsed.Type, msg.Type)
+	}
+	if parsed.Payload.ProjectID != msg.Payload.ProjectID {
+		t.Errorf("Payload.ProjectID = %v, want %v", parsed.Payload.ProjectID, msg.Payload.ProjectID)
+	}
+	if parsed.Payload.Status != msg.Payload.Status {
+		t.Errorf("Payload.Status = %v, want %v", parsed.Payload.Status, msg.Payload.Status)
+	}
+	if parsed.Payload.Crawl.Done != msg.Payload.Crawl.Done {
+		t.Errorf("Payload.Crawl.Done = %v, want %v", parsed.Payload.Crawl.Done, msg.Payload.Crawl.Done)
 	}
 }

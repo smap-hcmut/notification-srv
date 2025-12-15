@@ -34,12 +34,11 @@ func TestProjectNotificationMessage_Validate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "empty status",
+			name: "empty status is valid (status is optional)",
 			msg: ProjectNotificationMessage{
 				Progress: &Progress{},
 			},
-			wantErr: true,
-			errMsg:  "missing required field: status",
+			wantErr: false,
 		},
 		{
 			name: "invalid progress",
@@ -101,12 +100,11 @@ func TestJobNotificationMessage_Validate(t *testing.T) {
 			errMsg:  "missing required field: platform",
 		},
 		{
-			name: "empty status",
+			name: "empty status is valid (status is optional)",
 			msg: JobNotificationMessage{
 				Platform: PlatformTikTok,
 			},
-			wantErr: true,
-			errMsg:  "missing required field: status",
+			wantErr: false,
 		},
 	}
 

@@ -30,10 +30,9 @@ func TestInputValidator_ValidateProjectInput(t *testing.T) {
 			errMsg:  "invalid JSON format",
 		},
 		{
-			name:    "missing status",
+			name:    "missing status is valid (status is optional)",
 			payload: `{"progress": {"current": 50, "total": 100}}`,
-			wantErr: true,
-			errMsg:  "project input validation failed",
+			wantErr: false,
 		},
 		{
 			name:    "invalid status",
@@ -103,10 +102,9 @@ func TestInputValidator_ValidateJobInput(t *testing.T) {
 			errMsg:  "job input validation failed",
 		},
 		{
-			name:    "missing status",
+			name:    "missing status is valid (status is optional)",
 			payload: `{"platform": "TIKTOK"}`,
-			wantErr: true,
-			errMsg:  "job input validation failed",
+			wantErr: false,
 		},
 		{
 			name:    "invalid status",
@@ -134,13 +132,13 @@ func TestInputValidator_ValidateJobInput(t *testing.T) {
 
 func TestValidateTopicFormat(t *testing.T) {
 	tests := []struct {
-		name        string
-		topic       string
-		wantType    string
-		wantID      string
-		wantUserID  string
-		wantErr     bool
-		errMsg      string
+		name       string
+		topic      string
+		wantType   string
+		wantID     string
+		wantUserID string
+		wantErr    bool
+		errMsg     string
 	}{
 		{
 			name:       "valid project topic",
@@ -205,19 +203,19 @@ func TestValidateTopicFormat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			topicType, id, userID, err := ValidateTopicFormat(tt.topic)
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateTopicFormat() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			
+
 			if err != nil {
 				if tt.errMsg != "" && !contains(err.Error(), tt.errMsg) {
 					t.Errorf("ValidateTopicFormat() error = %v, want to contain %v", err.Error(), tt.errMsg)
 				}
 				return
 			}
-			
+
 			if topicType != tt.wantType {
 				t.Errorf("ValidateTopicFormat() topicType = %v, want %v", topicType, tt.wantType)
 			}
@@ -380,9 +378,9 @@ func TestIsValidIDChar(t *testing.T) {
 // Helper functions for tests
 
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || 
-		(len(s) > len(substr) && 
-			(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || 
+	return len(s) >= len(substr) && (s == substr ||
+		(len(s) > len(substr) &&
+			(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
 				findSubstring(s, substr))))
 }
 

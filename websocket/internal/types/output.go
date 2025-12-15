@@ -296,3 +296,94 @@ func (p *ProjectNotificationMessage) ToJSON() ([]byte, error) {
 func (j *JobNotificationMessage) ToJSON() ([]byte, error) {
 	return json.Marshal(j)
 }
+
+// ============================================================================
+// Phase-Based Progress Types (New Format)
+// ============================================================================
+
+// PhaseProgress represents progress for a single phase in output format
+type PhaseProgress struct {
+	Total           int64   `json:"total"`            // Total items in this phase
+	Done            int64   `json:"done"`             // Completed items in this phase
+	Errors          int64   `json:"errors"`           // Failed items in this phase
+	ProgressPercent float64 `json:"progress_percent"` // Phase progress (0.0-100.0)
+}
+
+// ProjectPhaseNotificationMessage represents the NEW output structure with phase-based progress
+// This is sent directly to WebSocket clients
+type ProjectPhaseNotificationMessage struct {
+	Type    string                    `json:"type"`    // "project_progress" or "project_completed"
+	Payload ProjectPhasePayloadOutput `json:"payload"` // Message payload
+}
+
+// ProjectPhasePayloadOutput represents the payload for phase-based project messages
+type ProjectPhasePayloadOutput struct {
+	ProjectID              string         `json:"project_id"`               // Project identifier
+	Status                 string         `json:"status"`                   // "INITIALIZING", "PROCESSING", "DONE", "FAILED"
+	Crawl                  *PhaseProgress `json:"crawl,omitempty"`          // Progress for crawl phase
+	Analyze                *PhaseProgress `json:"analyze,omitempty"`        // Progress for analyze phase
+	OverallProgressPercent float64        `json:"overall_progress_percent"` // Combined progress (0.0-100.0)
+}
+
+// Validate validates the phase progress output
+func (p *PhaseProgress) Validate() error {
+	if p.Total < 0 {
+		return ErrInvalidValue("total", "must be non-negative")
+	}
+	if p.Done < 0 {
+		return ErrInvalidValue("done", "must be non-negative")
+	}
+	if p.Errors < 0 {
+		return ErrInvalidValue("errors", "must be non-negative")
+	}
+	if p.ProgressPercent < 0 || p.ProgressPercent > 100 {
+		return ErrInvalidValue("progress_percent", "must be between 0 and 100")
+	}
+	return nil
+}
+
+// Validate validates the project phase notification message
+func (p *ProjectPhaseNotificationMessage) Validate() error {
+	validTypes := []string{"project_progress", "project_completed"}
+	isValidType := false
+	for _, t := range validTypes {
+		if p.Type == t {
+			isValidType = true
+			break
+		}
+	}
+	if !isValidType {
+		return ErrInvalidValue("type", "must be project_progress or project_completed")
+	}
+	return p.Payload.Validate()
+}
+
+// Validate validates the project phase payload output
+func (p *ProjectPhasePayloadOutput) Validate() error {
+	if p.ProjectID == "" {
+		return ErrMissingRequiredField("project_id")
+	}
+
+	if p.Crawl != nil {
+		if err := p.Crawl.Validate(); err != nil {
+			return ErrInvalidField("crawl", err)
+		}
+	}
+
+	if p.Analyze != nil {
+		if err := p.Analyze.Validate(); err != nil {
+			return ErrInvalidField("analyze", err)
+		}
+	}
+
+	if p.OverallProgressPercent < 0 || p.OverallProgressPercent > 100 {
+		return ErrInvalidValue("overall_progress_percent", "must be between 0 and 100")
+	}
+
+	return nil
+}
+
+// ToJSON converts the project phase notification message to JSON bytes
+func (p *ProjectPhaseNotificationMessage) ToJSON() ([]byte, error) {
+	return json.Marshal(p)
+}

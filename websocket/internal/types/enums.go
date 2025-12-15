@@ -4,10 +4,22 @@ package types
 type ProjectStatus string
 
 const (
-	ProjectStatusProcessing ProjectStatus = "PROCESSING" // Project is being processed (crawling and analysis)
-	ProjectStatusCompleted  ProjectStatus = "COMPLETED"  // Project finished successfully
-	ProjectStatusFailed     ProjectStatus = "FAILED"     // Project encountered fatal error
-	ProjectStatusPaused     ProjectStatus = "PAUSED"     // Project temporarily stopped
+	ProjectStatusInitializing ProjectStatus = "INITIALIZING" // Project is initializing
+	ProjectStatusProcessing   ProjectStatus = "PROCESSING"   // Project is being processed (crawling and analysis)
+	ProjectStatusDone         ProjectStatus = "DONE"         // Project finished (new phase-based status)
+	ProjectStatusCompleted    ProjectStatus = "COMPLETED"    // Project finished successfully (legacy)
+	ProjectStatusFailed       ProjectStatus = "FAILED"       // Project encountered fatal error
+	ProjectStatusPaused       ProjectStatus = "PAUSED"       // Project temporarily stopped
+)
+
+// PhaseBasedProjectStatus represents status values for phase-based progress messages
+type PhaseBasedProjectStatus string
+
+const (
+	PhaseBasedStatusInitializing PhaseBasedProjectStatus = "INITIALIZING"
+	PhaseBasedStatusProcessing   PhaseBasedProjectStatus = "PROCESSING"
+	PhaseBasedStatusDone         PhaseBasedProjectStatus = "DONE"
+	PhaseBasedStatusFailed       PhaseBasedProjectStatus = "FAILED"
 )
 
 // JobStatus represents the current status of a job
@@ -30,9 +42,20 @@ const (
 )
 
 // IsValidProjectStatus checks if the given status is a valid ProjectStatus
+// Includes both legacy and new phase-based statuses for backward compatibility
 func IsValidProjectStatus(status string) bool {
 	switch ProjectStatus(status) {
-	case ProjectStatusProcessing, ProjectStatusCompleted, ProjectStatusFailed, ProjectStatusPaused:
+	case ProjectStatusInitializing, ProjectStatusProcessing, ProjectStatusDone, ProjectStatusCompleted, ProjectStatusFailed, ProjectStatusPaused:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsValidPhaseBasedProjectStatus checks if the given status is valid for phase-based progress messages
+func IsValidPhaseBasedProjectStatus(status string) bool {
+	switch PhaseBasedProjectStatus(status) {
+	case PhaseBasedStatusInitializing, PhaseBasedStatusProcessing, PhaseBasedStatusDone, PhaseBasedStatusFailed:
 		return true
 	default:
 		return false

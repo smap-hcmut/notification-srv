@@ -296,3 +296,112 @@ func (p *ProjectInputMessage) ToJSON() ([]byte, error) {
 func (j *JobInputMessage) ToJSON() ([]byte, error) {
 	return json.Marshal(j)
 }
+
+// ============================================================================
+// Phase-Based Progress Types (New Format)
+// ============================================================================
+
+// PhaseProgressInput represents progress for a single phase (crawl/analyze)
+type PhaseProgressInput struct {
+	Total           int64   `json:"total"`            // Total items in this phase
+	Done            int64   `json:"done"`             // Completed items in this phase
+	Errors          int64   `json:"errors"`           // Failed items in this phase
+	ProgressPercent float64 `json:"progress_percent"` // Phase progress (0.0-100.0)
+}
+
+// ProjectPhaseInputMessage represents the NEW input structure with phase-based progress
+// Channel format: project:{project_id}:{user_id}
+type ProjectPhaseInputMessage struct {
+	Type    string                   `json:"type"`    // "project_progress" or "project_completed"
+	Payload ProjectPhasePayloadInput `json:"payload"` // Message payload
+}
+
+// ProjectPhasePayloadInput represents the payload for phase-based project messages
+type ProjectPhasePayloadInput struct {
+	ProjectID              string              `json:"project_id"`               // Project identifier
+	Status                 string              `json:"status"`                   // "INITIALIZING", "PROCESSING", "DONE", "FAILED"
+	Crawl                  *PhaseProgressInput `json:"crawl,omitempty"`          // Progress for crawl phase
+	Analyze                *PhaseProgressInput `json:"analyze,omitempty"`        // Progress for analyze phase
+	OverallProgressPercent float64             `json:"overall_progress_percent"` // Combined progress (0.0-100.0)
+}
+
+// Validate validates the phase progress input
+func (p *PhaseProgressInput) Validate() error {
+	if p.Total < 0 {
+		return ErrInvalidValue("total", "must be non-negative")
+	}
+	if p.Done < 0 {
+		return ErrInvalidValue("done", "must be non-negative")
+	}
+	if p.Done > p.Total && p.Total > 0 {
+		return ErrInvalidValue("done", "cannot exceed total")
+	}
+	if p.Errors < 0 {
+		return ErrInvalidValue("errors", "must be non-negative")
+	}
+	if p.ProgressPercent < 0 || p.ProgressPercent > 100 {
+		return ErrInvalidValue("progress_percent", "must be between 0 and 100")
+	}
+	return nil
+}
+
+// Validate validates the project phase input message
+func (p *ProjectPhaseInputMessage) Validate() error {
+	validTypes := []string{"project_progress", "project_completed"}
+	isValidType := false
+	for _, t := range validTypes {
+		if p.Type == t {
+			isValidType = true
+			break
+		}
+	}
+	if !isValidType {
+		return ErrInvalidValue("type", "must be project_progress or project_completed")
+	}
+	return p.Payload.Validate()
+}
+
+// Validate validates the project phase payload input
+func (p *ProjectPhasePayloadInput) Validate() error {
+	if p.ProjectID == "" {
+		return ErrMissingRequiredField("project_id")
+	}
+
+	if !IsValidPhaseBasedProjectStatus(p.Status) {
+		return ErrInvalidStatus(p.Status)
+	}
+
+	if p.Crawl != nil {
+		if err := p.Crawl.Validate(); err != nil {
+			return ErrInvalidField("crawl", err)
+		}
+	}
+
+	if p.Analyze != nil {
+		if err := p.Analyze.Validate(); err != nil {
+			return ErrInvalidField("analyze", err)
+		}
+	}
+
+	if p.OverallProgressPercent < 0 || p.OverallProgressPercent > 100 {
+		return ErrInvalidValue("overall_progress_percent", "must be between 0 and 100")
+	}
+
+	return nil
+}
+
+// ToJSON converts the project phase input message to JSON bytes
+func (p *ProjectPhaseInputMessage) ToJSON() ([]byte, error) {
+	return json.Marshal(p)
+}
+
+// IsPhaseBasedMessage checks if the payload is in phase-based format
+func IsPhaseBasedMessage(payload []byte) bool {
+	var msg struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(payload, &msg); err != nil {
+		return false
+	}
+	return msg.Type == "project_progress" || msg.Type == "project_completed"
+}

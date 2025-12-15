@@ -1,7 +1,7 @@
 # WebSocket Service Behavior Specification
 
-**Last Updated**: 2025-12-07  
-**Service Version**: 1.0.0  
+**Last Updated**: 2025-12-15  
+**Service Version**: 1.1.0  
 **Status**: Production Ready
 
 ---
@@ -12,11 +12,12 @@
 2. [Core Components](#core-components)
 3. [Connection Lifecycle](#connection-lifecycle)
 4. [Message Handling](#message-handling)
-5. [Redis Pub/Sub Subscription](#redis-pubsub-subscription)
-6. [Health Monitoring](#health-monitoring)
-7. [Error Handling](#error-handling)
-8. [Configuration](#configuration)
-9. [API Reference](#api-reference)
+5. [Phase-Based Progress](#phase-based-progress)
+6. [Redis Pub/Sub Subscription](#redis-pubsub-subscription)
+7. [Health Monitoring](#health-monitoring)
+8. [Error Handling](#error-handling)
+9. [Configuration](#configuration)
+10. [API Reference](#api-reference)
 
 ---
 
@@ -301,6 +302,125 @@ type ProgressPayload struct {
     ProgressPercent float64 `json:"progress_percent"` // 0.0 - 100.0
 }
 ```
+
+---
+
+## Phase-Based Progress
+
+> **New in v1.1.0**: Hỗ trợ phase-based progress với chi tiết tiến độ cho từng phase (crawl, analyze).
+
+### Overview
+
+Phase-Based Progress cho phép frontend hiển thị tiến độ chi tiết cho từng phase của project:
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Project: proj_xyz                                   │
+│ Status: PROCESSING                                  │
+│ ┌─────────────────────────────────────────────────┐ │
+│ │ Crawl Phase     [████████░░] 82% (80/100)       │ │
+│ │ Analyze Phase   [█████░░░░░] 59% (45/78)        │ │
+│ └─────────────────────────────────────────────────┘ │
+│ Overall: 70.5%                                      │
+└─────────────────────────────────────────────────────┘
+```
+
+### Message Format Detection
+
+Transform layer tự động detect format dựa vào `type` field:
+
+| Condition | Format |
+|-----------|--------|
+| `type` = `project_progress` hoặc `project_completed` | Phase-Based |
+| Không có `type` field hoặc giá trị khác | Legacy |
+
+### Phase-Based Message Structure
+
+**Progress Update:**
+
+```json
+{
+  "type": "project_progress",
+  "payload": {
+    "project_id": "proj_xyz",
+    "status": "PROCESSING",
+    "crawl": {
+      "total": 100,
+      "done": 80,
+      "errors": 2,
+      "progress_percent": 82.0
+    },
+    "analyze": {
+      "total": 78,
+      "done": 45,
+      "errors": 1,
+      "progress_percent": 59.0
+    },
+    "overall_progress_percent": 70.5
+  }
+}
+```
+
+**Completion Notification:**
+
+```json
+{
+  "type": "project_completed",
+  "payload": {
+    "project_id": "proj_xyz",
+    "status": "DONE",
+    "crawl": {
+      "total": 100,
+      "done": 98,
+      "errors": 2,
+      "progress_percent": 100.0
+    },
+    "analyze": {
+      "total": 98,
+      "done": 95,
+      "errors": 3,
+      "progress_percent": 100.0
+    },
+    "overall_progress_percent": 100.0
+  }
+}
+```
+
+### Phase-Based Status Values
+
+| Status | Description |
+|--------|-------------|
+| `INITIALIZING` | Project đang được khởi tạo |
+| `PROCESSING` | Crawl và/hoặc analyze phase đang chạy |
+| `DONE` | Tất cả phases hoàn thành thành công |
+| `FAILED` | Processing failed |
+
+### Phase Progress Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `total` | int64 | Tổng số items trong phase |
+| `done` | int64 | Số items đã hoàn thành |
+| `errors` | int64 | Số items bị lỗi |
+| `progress_percent` | float64 | Phần trăm tiến độ (0.0-100.0) |
+
+### Transform Layer Processing
+
+```go
+// Auto-detect và route đúng transformer
+func (t *ProjectTransformer) TransformAny(ctx context.Context, payload string, projectID, userID string) (interface{}, error) {
+    if types.IsPhaseBasedMessage([]byte(payload)) {
+        return t.TransformPhaseBased(ctx, payload, projectID, userID)
+    }
+    return t.Transform(ctx, payload, projectID, userID)
+}
+```
+
+### Backward Compatibility
+
+- Legacy format vẫn được hỗ trợ đầy đủ
+- Clients cũ có thể ignore các fields mới (`crawl`, `analyze`, `overall_progress_percent`)
+- Không cần thay đổi client code để tiếp tục nhận legacy messages
 
 ---
 
