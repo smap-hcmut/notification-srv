@@ -30,10 +30,10 @@ Thumbs.db
 # Documentation
 docs
 
-# OpenSpec
-.cursor/*
-.kilocode/*
-.agent/*
-.claude/*
-AGENTS.md
-CLAUDE.md
+# # OpenSpec
+# .cursor/*
+# .kilocode/*
+# .agent/*
+# .claude/*
+# AGENTS.md
+# CLAUDE.md
