@@ -1,0 +1,34 @@
+[GIN] 2025/12/15 - 02:37:31 | 204 |       51.97µs | 192.168.105.128 | OPTIONS  "/projects"
+[GIN] 2025/12/15 - 02:37:31 | 200 |   21.657384ms |   172.16.21.113 | POST     "/projects"
+2025-12-15T02:37:31.484+0700	INFO	usecase/project.go:195	internal.project.usecase.Execute: updated project 161cdf3a-fc6a-421e-b241-7e1fe0a1fe62 status to process
+2025-12-15T02:37:31.497+0700	INFO	redis/state_repo.go:47	state.repository.redis.InitState: initialized state for project 161cdf3a-fc6a-421e-b241-7e1fe0a1fe62
+2025-12-15T02:37:31.497+0700	INFO	usecase/project.go:221	internal.project.usecase.Execute: successfully executed project 161cdf3a-fc6a-421e-b241-7e1fe0a1fe62
+[GIN] 2025/12/15 - 02:37:31 | 200 |   20.453736ms | 192.168.105.128 | POST     "/projects/161cdf3a-fc6a-421e-b241-7e1fe0a1fe62/execute"
+[GIN] 2025/12/15 - 02:37:31 | 401 |        33.9µs | 192.168.105.153 | POST     "/internal/progress/callback"
+[GIN] 2025/12/15 - 02:37:32 | 200 |      3.0342ms |   172.16.21.113 | POST     "/projects"
+[GIN] 2025/12/15 - 02:37:32 | 401 |      46.496µs | 192.168.105.153 | POST     "/internal/progress/callback"
+[GIN] 2025/12/15 - 02:37:34 | 401 |      90.503µs | 192.168.105.153 | POST     "/internal/progress/callback"
+[GIN] 2025/12/15 - 02:37:38 | 401 |       48.12µs | 192.168.105.153 | POST     "/internal/progress/callback"
+[GIN] 2025/12/15 - 02:37:46 | 401 |      51.048µs | 192.168.105.153 | POST     "/internal/progress/callback"
+[GIN] 2025/12/15 - 02:38:02 | 401 |      49.305µs | 192.168.105.153 | POST     "/internal/progress/callback"
+
+2025-12-15T02:37:31.498+0700	INFO	consumer/project_consumer.go:28	dispatcher.delivery.rabbitmq.consumer.projectEventWorker
+2025-12-15T02:37:31.498+0700	INFO	consumer/project_consumer.go:46	dispatcher.delivery.rabbitmq.consumer.projectEventWorker: received event - event_id=238fc7f3-aca2-43df-bcdf-c9970d1da2e5, project_id=161cdf3a-fc6a-421e-b241-7e1fe0a1fe62, user_id=84376f33-1a4d-4dff-ad95-db07bac030b2, brand=Tanca, keywords=5
+2025-12-15T02:37:31.498+0700	INFO	usecase/project_event.go:21	dispatcher.usecase.project_event.HandleProjectCreatedEvent: processing event - event_id=238fc7f3-aca2-43df-bcdf-c9970d1da2e5, project_id=161cdf3a-fc6a-421e-b241-7e1fe0a1fe62, user_id=84376f33-1a4d-4dff-ad95-db07bac030b2
+2025-12-15T02:37:31.502+0700	DEBUG	usecase/state.go:201	Stored user mapping: project_id=161cdf3a-fc6a-421e-b241-7e1fe0a1fe62, user_id=84376f33-1a4d-4dff-ad95-db07bac030b2
+2025-12-15T02:37:31.502+0700	INFO	usecase/project_event.go:36	dispatcher.usecase.project_event.HandleProjectCreatedEvent: transformed to 5 requests, total tasks=10
+2025-12-15T02:37:31.502+0700	INFO	usecase/state.go:74	Updated total: project_id=161cdf3a-fc6a-421e-b241-7e1fe0a1fe62, total=10, status=CRAWLING
+2025-12-15T02:37:31.502+0700	INFO	usecase/project_event.go:47	dispatcher.usecase.project_event.HandleProjectCreatedEvent: notifying progress - project_id=161cdf3a-fc6a-421e-b241-7e1fe0a1fe62, user_id=84376f33-1a4d-4dff-ad95-db07bac030b2
+2025-12-15T02:37:31.505+0700	WARN	project/client.go:84	Progress webhook attempt 1/6 failed, retrying in 1s: project service unauthorized
+2025-12-15T02:37:32.507+0700	WARN	project/client.go:84	Progress webhook attempt 2/6 failed, retrying in 2s: project service unauthorized
+2025-12-15T02:37:34.508+0700	WARN	project/client.go:84	Progress webhook attempt 3/6 failed, retrying in 4s: project service unauthorized
+2025-12-15T02:37:38.510+0700	WARN	project/client.go:84	Progress webhook attempt 4/6 failed, retrying in 8s: project service unauthorized
+2025-12-15T02:37:46.512+0700	WARN	project/client.go:84	Progress webhook attempt 5/6 failed, retrying in 16s: project service unauthorized
+2025-12-15T02:38:02.515+0700	ERROR	project/client.go:94	Progress webhook failed after 6 attempts: project service unauthorized
+2025-12-15T02:38:02.515+0700	WARN	usecase/webhook.go:27	NotifyProgress failed: project_id=161cdf3a-fc6a-421e-b241-7e1fe0a1fe62, error=progress webhook failed after 6 attempts
+2025-12-15T02:38:02.515+0700	WARN	usecase/project_event.go:91	dispatcher.usecase.project_event.notifyProgress: failed to notify: progress webhook failed after 6 attempts
+2025-12-15T02:38:02.516+0700	INFO	consumer/project_consumer.go:67	dispatcher.delivery.rabbitmq.consumer.projectEventWorker: successfully handled event - event_id=238fc7f3-aca2-43df-bcdf-c9970d1da2e5, project_id=161cdf3a-fc6a-421e-b241-7e1fe0a1fe62
+
+2025-12-15T02:37:54.679+0700	DEBUG	websocket/connection.go:133	Received message from user 84376f33-1a4d-4dff-ad95-db07bac030b2: {"type":"ping","data":{"timestamp":1765741074650},"timestamp":1765741074650}
+2025-12-15T02:38:24.675+0700	DEBUG	websocket/connection.go:133	Received message from user 84376f33-1a4d-4dff-ad95-db07bac030b2: {"type":"ping","data":{"timestamp":1765741104650},"timestamp":1765741104650}
+2025-12-15T02:38:59.819+0700	DEBUG	websocket/connection.go:133	Received message from user 84376f33-1a4d-4dff-ad95-db07bac030b2: {"type":"ping","data":{"timestamp":1765741139793},"timestamp":1765741139793}
