@@ -21,6 +21,7 @@ data:
   LOGGER_LEVEL: "info"
   LOGGER_MODE: "production"
   LOGGER_ENCODING: "json"
+  LOGGER_COLOR_ENABLED: "false"
 
   # Redis Configuration (non-sensitive)
   REDIS_DB: "0"

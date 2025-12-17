@@ -36,9 +36,10 @@ func main() {
 
 	// Initialize logger
 	logger := log.Init(log.ZapConfig{
-		Level:    cfg.Logger.Level,
-		Mode:     cfg.Logger.Mode,
-		Encoding: cfg.Logger.Encoding,
+		Level:        cfg.Logger.Level,
+		Mode:         cfg.Logger.Mode,
+		Encoding:     cfg.Logger.Encoding,
+		ColorEnabled: cfg.Logger.ColorEnabled,
 	})
 
 	ctx := context.Background()

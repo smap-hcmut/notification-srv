@@ -81,9 +81,10 @@ type CookieConfig struct {
 
 // LoggerConfig is the configuration for the logger
 type LoggerConfig struct {
-	Level    string `env:"LOGGER_LEVEL" envDefault:"info"`
-	Mode     string `env:"LOGGER_MODE" envDefault:"production"`
-	Encoding string `env:"LOGGER_ENCODING" envDefault:"json"`
+	Level        string `env:"LOGGER_LEVEL" envDefault:"info"`
+	Mode         string `env:"LOGGER_MODE" envDefault:"production"`
+	Encoding     string `env:"LOGGER_ENCODING" envDefault:"json"`
+	ColorEnabled bool   `env:"LOGGER_COLOR_ENABLED" envDefault:"true"`
 }
 
 // EnvironmentConfig is the configuration for environment-aware features
