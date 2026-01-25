@@ -16,14 +16,14 @@
 
 - **HttpOnly Cookie Authentication** - Secure JWT authentication via cookies
 - WebSocket Server with automatic credential handling
-- Redis Pub/Sub integration for message routing  
-- Multiple connections per user (multiple browser tabs)  
-- Auto reconnection to Redis with retry logic  
-- Ping/Pong keep-alive (30s interval)  
-- Health & Metrics endpoints  
-- Graceful shutdown handling  
-- Docker support with optimized build  
-- Horizontal scaling ready  
+- Redis Pub/Sub integration for message routing
+- Multiple connections per user (multiple browser tabs)
+- Auto reconnection to Redis with retry logic
+- Ping/Pong keep-alive (30s interval)
+- Health check endpoint
+- Graceful shutdown handling
+- Docker support with optimized build
+- Horizontal scaling ready
 
 ---
 
@@ -86,23 +86,24 @@ This service uses **HttpOnly cookie authentication** shared with the Identity se
 
 ```javascript
 // No token needed in URL - cookie sent automatically!
-const ws = new WebSocket('ws://localhost:8081/ws');
+const ws = new WebSocket("ws://localhost:8081/ws");
 
 ws.onopen = () => {
-  console.log('Connected with cookie authentication!');
+  console.log("Connected with cookie authentication!");
 };
 
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data);
-  console.log('Received:', message);
+  console.log("Received:", message);
 };
 
 ws.onerror = (error) => {
-  console.error('WebSocket error:', error);
+  console.error("WebSocket error:", error);
 };
 ```
 
 **Requirements**:
+
 - User must be logged in via Identity service (cookie automatically set)
 - Frontend must be served from allowed origin (localhost:3000, smap.tantai.dev)
 - Browser automatically includes cookies with WebSocket connections
@@ -113,11 +114,12 @@ ws.onerror = (error) => {
 
 ```javascript
 // Old method - token exposed in URL
-const token = 'your-jwt-token';
+const token = "your-jwt-token";
 const ws = new WebSocket(`ws://localhost:8081/ws?token=${token}`);
 ```
 
 **Security Issues**:
+
 - Token exposed in URL and logs
 - Token stored in browser history
 - Vulnerable to referrer header leakage
@@ -127,26 +129,28 @@ const ws = new WebSocket(`ws://localhost:8081/ws?token=${token}`);
 **For Frontend Developers**:
 
 1. **Remove token from WebSocket URL**:
+
    ```javascript
    // Before
    const ws = new WebSocket(`ws://api.smap.com/ws?token=${token}`);
-   
+
    // After
-   const ws = new WebSocket('ws://api.smap.com/ws');
+   const ws = new WebSocket("ws://api.smap.com/ws");
    ```
 
 2. **Ensure user is authenticated**: Login via Identity service first
+
    ```javascript
    // Login to get cookie
-   await fetch('https://api.smap.com/identity/authentication/login', {
-     method: 'POST',
-     credentials: 'include', // Important!
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ email, password })
+   await fetch("https://api.smap.com/identity/authentication/login", {
+     method: "POST",
+     credentials: "include", // Important!
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({ email, password }),
    });
-   
+
    // Cookie is now set, connect to WebSocket
-   const ws = new WebSocket('ws://api.smap.com/ws');
+   const ws = new WebSocket("ws://api.smap.com/ws");
    ```
 
 3. **Test the connection**: Verify cookie authentication works before removing query parameter
@@ -154,14 +158,17 @@ const ws = new WebSocket(`ws://localhost:8081/ws?token=${token}`);
 ### Troubleshooting
 
 #### Connection Rejected: "missing token parameter"
+
 - **Cause**: Not logged in or cookie not set
 - **Solution**: Login via Identity service first
 
 #### Connection Rejected: "invalid or expired token"
+
 - **Cause**: Cookie expired or invalid JWT
 - **Solution**: Re-login to get fresh cookie
 
 #### CORS Errors
+
 - **Cause**: Frontend not served from allowed origin
 - **Solution**: Ensure frontend is on localhost:3000 or smap.tantai.dev
 
@@ -170,32 +177,28 @@ const ws = new WebSocket(`ws://localhost:8081/ws?token=${token}`);
 ## Endpoints
 
 ### WebSocket Connection
+
 **GET** `/ws`
 
 Authentication via HttpOnly cookie (automatic) or query parameter (deprecated).
 
 ### Health Check
-**GET** `/health`
 
-### Metrics
-**GET** `/metrics`
+**GET** `/health`
 
 ---
 
 ## Testing
 
-### With Example Client
-```bash
-go run tests/client_example.go YOUR_JWT_TOKEN
-```
-
 ### With Redis CLI
+
 ```bash
 redis-cli -a 21042004
 PUBLISH user_noti:user123 '{"type":"notification","payload":{"title":"Hello"}}'
 ```
 
 ### With Postman
+
 1. Create WebSocket Request
 2. URL: `ws://localhost:8081/ws?token=YOUR_TOKEN`
 3. Connect
@@ -233,20 +236,22 @@ WS_MAX_CONNECTIONS=10000
 
 The `ENV` variable controls CORS (Cross-Origin Resource Sharing) behavior:
 
-| Value | CORS Mode | Allowed Origins |
-|-------|-----------|----------------|
-| `production` | Strict | Production domains only (`https://smap.tantai.dev`, `https://smap-api.tantai.dev`) |
-| `staging` | Permissive | Production domains + localhost + private subnets (VPN access) |
-| `dev` | Permissive | Production domains + localhost + private subnets (VPN access) |
-| *(empty)* | Defaults to `production` | Production domains only (fail-safe) |
+| Value        | CORS Mode                | Allowed Origins                                                                    |
+| ------------ | ------------------------ | ---------------------------------------------------------------------------------- |
+| `production` | Strict                   | Production domains only (`https://smap.tantai.dev`, `https://smap-api.tantai.dev`) |
+| `staging`    | Permissive               | Production domains + localhost + private subnets (VPN access)                      |
+| `dev`        | Permissive               | Production domains + localhost + private subnets (VPN access)                      |
+| _(empty)_    | Defaults to `production` | Production domains only (fail-safe)                                                |
 
 **Security Notes**:
+
 - ⚠️ **Never** set `ENV=dev` or `ENV=staging` in production deployments
 - Production mode blocks localhost and private subnet access for security
 - Dev/staging modes allow VPN access from private subnets (172.16.x.x, 192.168.x.x)
 - Default behavior is production mode if `ENV` is not set (fail-safe)
 
 **Private Subnets** (allowed in dev/staging only):
+
 - `172.16.21.0/24` - K8s cluster subnet
 - `172.16.19.0/24` - Private network 1
 - `192.168.1.0/24` - Private network 2
@@ -257,8 +262,7 @@ These can be customized by modifying `privateSubnets` in `internal/websocket/han
 
 ## Documentation
 
-- **[Technical Requirements](document/proposal.md)** - Vietnamese specification
-- **[Integration Guide](document/integration.md)** - How to integrate
+See `documents/` directory for detailed documentation including integration guides and technical specifications.
 
 ---
 
@@ -278,30 +282,35 @@ make help               # Show all commands
 
 ### HttpOnly Cookie Benefits
 
-- ✅ **No Token Exposure**: JWT never appears in URLs or logs
-- ✅ **XSS Protection**: HttpOnly flag prevents JavaScript access
-- ✅ **HTTPS Only**: Secure flag ensures encrypted transmission
-- ✅ **CSRF Protection**: SameSite=Lax policy
-- ✅ **Automatic Handling**: Browser manages cookie lifecycle
+- **No Token Exposure**: JWT never appears in URLs or logs
+- **XSS Protection**: HttpOnly flag prevents JavaScript access
+- **HTTPS Only**: Secure flag ensures encrypted transmission
+- **CSRF Protection**: SameSite=Lax policy
+- **Automatic Handling**: Browser manages cookie lifecycle
 
 ### CORS Configuration
 
 CORS behavior is controlled by the `ENV` environment variable (see [Configuration](#environment-configuration-env) above).
 
 **Production Mode** (`ENV=production`):
+
 - Only production domains allowed: `https://smap.tantai.dev`, `https://smap-api.tantai.dev`
 - Localhost and private subnets are blocked
 
 **Dev/Staging Mode** (`ENV=dev` or `ENV=staging`):
+
 - Production domains allowed
 - Localhost allowed (any port): `http://localhost:*`, `http://127.0.0.1:*`
 - Private subnets allowed (VPN access): `172.16.21.0/24`, `172.16.19.0/24`, `192.168.1.0/24`
 
 **Startup Logging**: The service logs the active CORS mode on startup:
+
 ```
 CORS mode: production (strict origins only)
 ```
+
 or
+
 ```
 CORS mode: dev (permissive - allows localhost and private subnets)
 ```
@@ -309,4 +318,4 @@ CORS mode: dev (permissive - allows localhost and private subnets)
 ---
 
 **Built for SMAP Graduation Project**  
-*Last updated: 2025-11-28 - HttpOnly Cookie Authentication Migration Complete*
+_Last updated: 2026-01-25_

@@ -43,14 +43,14 @@ The SMAP WebSocket Notification Service is a real-time communication hub that ma
 ### Testing Strategy
 - **Unit Tests**: Target 100% coverage for new functions (especially CORS validation, CIDR checks)
 - **Integration Tests**: Test Redis Pub/Sub message flow with test Redis instance
-- **Manual Testing**: Use `tests/client_example.go` for WebSocket connection testing
+- **Manual Testing**: Use Redis CLI or Postman for WebSocket connection testing
 - **Test Files**: Co-locate with source files (`*_test.go`)
 - **Test Naming**: `TestFunctionName_Scenario` format (e.g., `TestIsPrivateOrigin_K8sSubnet`)
 - **Test Data**: Use table-driven tests for multiple scenarios
 - **Mocking**: Use interfaces to enable dependency injection in tests
 
 ### Git Workflow
-- **Branching**: Feature branches from `master-websocket` (or main branch)
+- **Branching**: Feature branches from `master` branch
 - **Commits**: Conventional commits preferred (feat:, fix:, docs:, test:)
 - **PR Process**: Code review required, all tests must pass
 - **OpenSpec**: Use OpenSpec for change proposals (see `openspec/AGENTS.md`)
@@ -61,7 +61,7 @@ The SMAP WebSocket Notification Service is a real-time communication hub that ma
 ### WebSocket Service Domain
 - **Connections**: Each user can have multiple WebSocket connections (multiple tabs/devices)
 - **Authentication**: HttpOnly cookie authentication (primary), query parameter (deprecated fallback)
-- **Message Routing**: Messages published to Redis channel `user_noti:<userID>` are delivered to all user's connections
+- **Message Routing**: Messages published to Redis channels (`user_noti:<userID>`, `project:<projectID>:<userID>`, `job:<jobID>:<userID>`) are delivered to user's connections based on topic subscriptions
 - **Connection Lifecycle**: Connect → Authenticate → Register → Receive Messages → Disconnect → Cleanup
 - **Health Monitoring**: Ping/Pong keep-alive (30s interval) to detect dead connections
 
@@ -95,7 +95,7 @@ The SMAP WebSocket Notification Service is a real-time communication hub that ma
 
 ### Operational Constraints
 - **Horizontal Scaling**: Multiple instances can run behind load balancer (stateless design)
-- **Redis Pattern Subscription**: Uses `user_noti:*` pattern to subscribe to all user channels
+- **Redis Pattern Subscription**: Uses multiple patterns (`user_noti:*`, `project:*`, `job:*`) to subscribe to all notification channels
 - **Graceful Shutdown**: Must handle SIGINT/SIGTERM and close connections cleanly
 - **Environment Configuration**: All configuration via environment variables (12-factor app)
 
@@ -110,7 +110,7 @@ The SMAP WebSocket Notification Service is a real-time communication hub that ma
 - **Discord Webhooks**: For operational notifications (webhook ID/token in config)
 
 ### Integration Points
-- **Redis Pub/Sub Channels**: `user_noti:<userID>` pattern for message routing
+- **Redis Pub/Sub Channels**: Multiple patterns (`user_noti:<userID>`, `project:<projectID>:<userID>`, `job:<jobID>:<userID>`) for topic-based message routing
 - **JWT Validation**: Uses shared secret with Identity Service
 - **Cookie Domain**: `.smap.com` (shared with Identity Service)
 - **CORS Origins**: Must align with frontend deployment origins
