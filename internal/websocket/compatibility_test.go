@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http/httptest"
-	"smap-websocket/internal/auth"
+	"smap-websocket/pkg/auth"
 	"strings"
 	"testing"
 	"time"

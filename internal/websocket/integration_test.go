@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
-	"smap-websocket/internal/auth"
+	"smap-websocket/pkg/auth"
 )
 
 // mockJWTValidator for testing

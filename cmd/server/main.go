@@ -11,21 +11,31 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"smap-websocket/config"
+	configRedis "smap-websocket/config/redis"
 	redisSubscriber "smap-websocket/internal/redis"
 	"smap-websocket/internal/server"
 	ws "smap-websocket/internal/websocket"
 	"smap-websocket/pkg/discord"
 	"smap-websocket/pkg/jwt"
 	"smap-websocket/pkg/log"
-	"smap-websocket/pkg/redis"
 )
 
-// @title       WebSocket Service
-// @description WebSocket notification hub service for real-time messaging
+// @title       SMAP Notification Service
+// @description SMAP Notification Service - WebSocket server for real-time notifications
 // @version     1.0
 // @host        localhost:8081
 // @schemes     ws http
 // @BasePath    /
+//
+// @securityDefinitions.apikey CookieAuth
+// @in cookie
+// @name smap_auth_token
+// @description Authentication token stored in HttpOnly cookie
+//
+// @securityDefinitions.apikey Bearer
+// @in header
+// @name Authorization
+// @description Bearer token authentication. Format: "Bearer {token}"
 func main() {
 	// Load configuration
 	cfg, err := config.Load()
@@ -42,47 +52,42 @@ func main() {
 		ColorEnabled: cfg.Logger.ColorEnabled,
 	})
 
-	ctx := context.Background()
-	logger.Info(ctx, "Starting WebSocket Service...")
+	// Create context with signal handling for graceful shutdown
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	logger.Info(ctx, "Starting Notification WebSocket Service...")
 
 	// Initialize Discord webhook (optional)
 	var discordClient *discord.Discord
 	if cfg.Discord.WebhookID != "" && cfg.Discord.WebhookToken != "" {
-		discordClient, err = discord.New(logger, &discord.DiscordWebhook{
-			ID:    cfg.Discord.WebhookID,
-			Token: cfg.Discord.WebhookToken,
-		})
+		webhook, err := discord.NewDiscordWebhook(cfg.Discord.WebhookID, cfg.Discord.WebhookToken)
 		if err != nil {
-			logger.Warnf(ctx, "Failed to initialize Discord webhook: %v", err)
+			logger.Warnf(ctx, "Discord webhook not configured (optional): %v", err)
 		} else {
-			logger.Info(ctx, "Discord webhook initialized")
+			discordClient, err = discord.New(logger, webhook)
+			if err != nil {
+				logger.Warnf(ctx, "Failed to initialize Discord webhook: %v", err)
+			} else {
+				logger.Info(ctx, "Discord webhook initialized")
+			}
 		}
 	}
 
-	// Initialize Redis client
-	redisClient, err := redis.NewClient(redis.Config{
-		Host:            cfg.Redis.Host,
-		Password:        cfg.Redis.Password,
-		DB:              cfg.Redis.DB,
-		UseTLS:          cfg.Redis.UseTLS,
-		MaxRetries:      cfg.Redis.MaxRetries,
-		MinIdleConns:    cfg.Redis.MinIdleConns,
-		PoolSize:        cfg.Redis.PoolSize,
-		PoolTimeout:     cfg.Redis.PoolTimeout,
-		ConnMaxIdleTime: cfg.Redis.ConnMaxIdleTime,
-		ConnMaxLifetime: cfg.Redis.ConnMaxLifetime,
-	})
+	// Redis - Pub/Sub for real-time notifications
+	redisClient, err := configRedis.Connect(ctx, cfg.Redis)
 	if err != nil {
 		logger.Errorf(ctx, "Failed to connect to Redis: %v", err)
 		return
 	}
-	defer redisClient.Close()
-	logger.Infof(ctx, "Redis connected successfully to %s", cfg.Redis.Host)
+	defer configRedis.Disconnect()
+	logger.Infof(ctx, "Redis client initialized")
 
-	// Initialize JWT validator
+	// JWT Manager (verify tokens from cookie/header)
 	jwtValidator := jwt.NewValidator(jwt.Config{
 		SecretKey: cfg.JWT.SecretKey,
 	})
+	logger.Info(ctx, "JWT validator initialized")
 
 	// Initialize WebSocket Hub
 	hub := ws.NewHub(logger, cfg.WebSocket.MaxConnections)
@@ -176,5 +181,5 @@ func main() {
 		logger.Errorf(ctx, "Error shutting down server: %v", err)
 	}
 
-	logger.Info(ctx, "Server shutdown complete")
+	logger.Info(ctx, "WebSocket server stopped gracefully")
 }

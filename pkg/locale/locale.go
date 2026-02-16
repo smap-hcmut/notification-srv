@@ -2,28 +2,8 @@ package locale
 
 import (
 	"context"
-	"errors"
 	"strings"
 )
-
-// ErrLocaleNotFound is returned when a requested locale is not supported.
-var ErrLocaleNotFound = errors.New("locale not found")
-
-// Supported languages
-const (
-	EN = "en" // English
-	VI = "vi" // Vietnamese
-	JA = "ja" // Japanese
-)
-
-// LangList contains all supported language codes.
-var LangList = []string{EN, VI, JA}
-
-// DefaultLang is the default language used when no valid locale is provided.
-var DefaultLang = EN
-
-// Locale is a context key type for storing locale information.
-type Locale struct{}
 
 // ParseLang parses and validates a language code.
 // It returns the default language if the provided code is not supported.

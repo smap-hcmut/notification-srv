@@ -1,0 +1,53 @@
+# SMAP Notification Service Configuration Example
+# Copy this file to notification-config.yaml and update with your values
+
+environment:
+  name: development
+
+server:
+  host: 0.0.0.0
+  port: 8081
+  mode: debug
+
+logger:
+  level: debug
+  mode: development
+  encoding: console
+  color_enabled: true
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+  use_tls: false
+  max_retries: 3
+  min_idle_conns: 10
+  pool_size: 100
+  pool_timeout: 4s
+  conn_max_idle_time: 5m
+  conn_max_lifetime: 30m
+
+websocket:
+  ping_interval: 30s
+  pong_wait: 60s
+  write_wait: 10s
+  max_message_size: 512
+  read_buffer_size: 1024
+  write_buffer_size: 1024
+  max_connections: 10000
+
+jwt:
+  secret_key: "CHANGE-ME-your-secret-key-min-32-characters"
+
+cookie:
+  domain: .smap.com
+  secure: true
+  samesite: Lax
+  max_age: 7200
+  max_age_remember: 2592000
+  name: smap_auth_token
+
+discord:
+  webhook_id: ""
+  webhook_token: ""

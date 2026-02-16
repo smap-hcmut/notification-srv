@@ -11,14 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Resp is the response format.
-type Resp struct {
-	ErrorCode int    `json:"error_code"`
-	Message   string `json:"message"`
-	Data      any    `json:"data,omitempty"`
-	Errors    any    `json:"errors,omitempty"`
-}
-
 // NewOKResp returns a new OK response with the given data.
 func NewOKResp(data any) Resp {
 	return Resp{
@@ -100,9 +92,6 @@ func HttpError(c *gin.Context, err *errors.HTTPError) {
 	statusCode, resp := parseError(err, c, nil)
 	c.JSON(statusCode, resp)
 }
-
-// ErrorMapping is a map of error to HTTPError.
-type ErrorMapping map[error]*errors.HTTPError
 
 // ErrorWithMap returns a new Error response with the given error.
 func ErrorWithMap(c *gin.Context, err error, eMap ErrorMapping) {

@@ -1,0 +1,61 @@
+# SMAP Notification Service Configuration
+
+# Environment Configuration
+environment:
+  name: development # development, staging, production
+
+# Server Configuration
+server:
+  host: 0.0.0.0
+  port: 8081
+  mode: debug # debug, release
+
+# Logger Configuration
+logger:
+  level: debug # debug, info, warn, error
+  mode: development # development, production
+  encoding: console # console, json
+  color_enabled: true
+
+# Redis Configuration
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+  use_tls: false
+  # Connection pool settings
+  max_retries: 3
+  min_idle_conns: 10
+  pool_size: 100
+  pool_timeout: 4s
+  conn_max_idle_time: 5m
+  conn_max_lifetime: 30m
+
+# WebSocket Configuration
+websocket:
+  ping_interval: 30s
+  pong_wait: 60s
+  write_wait: 10s
+  max_message_size: 512
+  read_buffer_size: 1024
+  write_buffer_size: 1024
+  max_connections: 10000
+
+# JWT Configuration
+jwt:
+  secret_key: "your-secret-key-min-32-characters-long-for-security"
+
+# Cookie Configuration
+cookie:
+  domain: .smap.com
+  secure: true
+  samesite: Lax # Strict, Lax, None
+  max_age: 7200 # 2 hours
+  max_age_remember: 2592000 # 30 days
+  name: smap_auth_token
+
+# Discord Configuration (optional)
+discord:
+  webhook_id: ""
+  webhook_token: ""

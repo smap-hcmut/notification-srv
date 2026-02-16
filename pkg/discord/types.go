@@ -1,7 +1,6 @@
 package discord
 
 import (
-	"context"
 	"time"
 )
 
@@ -91,30 +90,6 @@ type MessageOptions struct {
 	Username    string
 	AvatarURL   string
 	Timestamp   time.Time
-}
-
-// DiscordService interface defines methods for Discord service.
-type DiscordService interface {
-	// SendMessage sends a simple text message.
-	SendMessage(ctx context.Context, content string) error
-
-	// SendEmbed sends an embed message with options.
-	SendEmbed(ctx context.Context, options MessageOptions) error
-
-	// SendError sends an error message.
-	SendError(ctx context.Context, title, description string, err error) error
-
-	// SendSuccess sends a success message.
-	SendSuccess(ctx context.Context, title, description string) error
-
-	// SendWarning sends a warning message.
-	SendWarning(ctx context.Context, title, description string) error
-
-	// SendInfo sends an info message.
-	SendInfo(ctx context.Context, title, description string) error
-
-	// ReportBug sends a bug report (backward compatibility).
-	ReportBug(ctx context.Context, message string) error
 }
 
 // Config contains configuration for Discord service.

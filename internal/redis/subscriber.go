@@ -14,7 +14,7 @@ import (
 	"smap-websocket/pkg/log"
 	"smap-websocket/pkg/redis"
 
-	"smap-websocket/internal/transform"
+	"smap-websocket/pkg/transform"
 	ws "smap-websocket/internal/websocket"
 )
 
