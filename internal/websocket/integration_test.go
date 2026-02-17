@@ -1,4 +1,4 @@
-package websocket
+package websocket_test
 
 import (
 	"context"
@@ -13,7 +13,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
-	"smap-websocket/pkg/auth"
+	ws "notification-srv/internal/websocket"
+	httpDelivery "notification-srv/internal/websocket/delivery/http"
+	"notification-srv/internal/websocket/usecase"
 )
 
 // mockJWTValidator for testing
@@ -32,16 +34,20 @@ func (m *mockJWTValidator) ExtractUserID(token string) (string, error) {
 // integrationLogger for integration tests
 type integrationLogger struct{}
 
-func (t *integrationLogger) Debug(ctx context.Context, arg ...any)                   {}
-func (t *integrationLogger) Debugf(ctx context.Context, template string, arg ...any) {}
-func (t *integrationLogger) Info(ctx context.Context, arg ...any)                    {}
-func (t *integrationLogger) Infof(ctx context.Context, template string, arg ...any)  {}
-func (t *integrationLogger) Warn(ctx context.Context, arg ...any)                    {}
-func (t *integrationLogger) Warnf(ctx context.Context, template string, arg ...any)  {}
-func (t *integrationLogger) Error(ctx context.Context, arg ...any)                   {}
-func (t *integrationLogger) Errorf(ctx context.Context, template string, arg ...any) {}
-func (t *integrationLogger) Fatal(ctx context.Context, arg ...any)                   {}
-func (t *integrationLogger) Fatalf(ctx context.Context, template string, arg ...any) {}
+func (t *integrationLogger) Debug(ctx context.Context, arg ...any)                    {}
+func (t *integrationLogger) Debugf(ctx context.Context, template string, arg ...any)  {}
+func (t *integrationLogger) Info(ctx context.Context, arg ...any)                     {}
+func (t *integrationLogger) Infof(ctx context.Context, template string, arg ...any)   {}
+func (t *integrationLogger) Warn(ctx context.Context, arg ...any)                     {}
+func (t *integrationLogger) Warnf(ctx context.Context, template string, arg ...any)   {}
+func (t *integrationLogger) Error(ctx context.Context, arg ...any)                    {}
+func (t *integrationLogger) Errorf(ctx context.Context, template string, arg ...any)  {}
+func (t *integrationLogger) Fatal(ctx context.Context, arg ...any)                    {}
+func (t *integrationLogger) Fatalf(ctx context.Context, template string, arg ...any)  {}
+func (t *integrationLogger) DPanic(ctx context.Context, arg ...any)                   {}
+func (t *integrationLogger) DPanicf(ctx context.Context, template string, arg ...any) {}
+func (t *integrationLogger) Panic(ctx context.Context, arg ...any)                    {}
+func (t *integrationLogger) Panicf(ctx context.Context, template string, arg ...any)  {}
 
 // testAuthorizer for integration tests
 type testAuthorizer struct {
@@ -63,7 +69,7 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 	logger := &integrationLogger{}
 
 	// Create hub
-	hub := NewHub(logger, 100)
+	hub := usecase.NewHub(logger, 100)
 	go hub.Run()
 	defer hub.Shutdown(context.Background())
 
@@ -83,22 +89,22 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 	}
 
 	// Create rate limiter
-	rateLimiter := auth.NewConnectionTracker(auth.DefaultRateLimitConfig(), logger)
+	rateLimiter := NewMockRateLimiter(2, 5, time.Minute)
 
 	// Create handler with options
-	wsConfig := WSConfig{
+	wsConfig := httpDelivery.WSConfig{
 		PongWait:   60 * time.Second,
 		PingPeriod: 54 * time.Second,
 		WriteWait:  10 * time.Second,
 	}
-	cookieConfig := CookieConfig{Name: "auth_token"}
+	cookieConfig := httpDelivery.CookieConfig{Name: "auth_token"}
 
-	options := &HandlerOptions{
+	options := &httpDelivery.HandlerOptions{
 		Authorizer:  authorizer,
 		RateLimiter: rateLimiter,
 	}
 
-	handler := NewHandlerWithOptions(hub, jwtValidator, logger, wsConfig, nil, cookieConfig, "dev", options)
+	handler := httpDelivery.NewHandlerWithOptions(hub, jwtValidator, logger, wsConfig, nil, cookieConfig, "dev", options)
 
 	// Create test server
 	gin.SetMode(gin.TestMode)
@@ -121,7 +127,7 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 		defer conn.Close()
 
 		// Send a message to the project
-		msg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
+		msg, _ := ws.NewMessage(ws.MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "completed",
 		})
 		msgBytes, _ := msg.ToJSON()
@@ -135,13 +141,13 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 		}
 
 		// Verify message content
-		var receivedMsg Message
+		var receivedMsg ws.Message
 		if err := json.Unmarshal(message, &receivedMsg); err != nil {
 			t.Fatalf("Failed to unmarshal message: %v", err)
 		}
 
-		if receivedMsg.Type != MessageTypeProjectCompleted {
-			t.Errorf("Expected message type %s, got %s", MessageTypeProjectCompleted, receivedMsg.Type)
+		if receivedMsg.Type != ws.MessageTypeProjectCompleted {
+			t.Errorf("Expected message type %s, got %s", ws.MessageTypeProjectCompleted, receivedMsg.Type)
 		}
 	})
 
@@ -173,7 +179,7 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 		defer conn.Close()
 
 		// Send a message to the job
-		msg, _ := NewMessage(MessageTypeJobCompleted, map[string]interface{}{
+		msg, _ := ws.NewMessage(ws.MessageTypeJobCompleted, map[string]interface{}{
 			"status": "completed",
 		})
 		msgBytes, _ := msg.ToJSON()
@@ -187,13 +193,13 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 		}
 
 		// Verify message content
-		var receivedMsg Message
+		var receivedMsg ws.Message
 		if err := json.Unmarshal(message, &receivedMsg); err != nil {
 			t.Fatalf("Failed to unmarshal message: %v", err)
 		}
 
-		if receivedMsg.Type != MessageTypeJobCompleted {
-			t.Errorf("Expected message type %s, got %s", MessageTypeJobCompleted, receivedMsg.Type)
+		if receivedMsg.Type != ws.MessageTypeJobCompleted {
+			t.Errorf("Expected message type %s, got %s", ws.MessageTypeJobCompleted, receivedMsg.Type)
 		}
 	})
 
@@ -215,7 +221,7 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 		defer conn2.Close()
 
 		// Send project message
-		projMsg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
+		projMsg, _ := ws.NewMessage(ws.MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "completed",
 		})
 		projMsgBytes, _ := projMsg.ToJSON()
@@ -247,13 +253,13 @@ func TestEndToEndTopicSubscription(t *testing.T) {
 		defer conn.Close()
 
 		// Send both project and job messages
-		projMsg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
+		projMsg, _ := ws.NewMessage(ws.MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "completed",
 		})
 		projMsgBytes, _ := projMsg.ToJSON()
 		hub.SendToUserWithProject("user123", "proj1", projMsgBytes)
 
-		jobMsg, _ := NewMessage(MessageTypeJobCompleted, map[string]interface{}{
+		jobMsg, _ := ws.NewMessage(ws.MessageTypeJobCompleted, map[string]interface{}{
 			"status": "completed",
 		})
 		jobMsgBytes, _ := jobMsg.ToJSON()
@@ -278,7 +284,7 @@ func TestRateLimitingIntegration(t *testing.T) {
 	logger := &integrationLogger{}
 
 	// Create hub
-	hub := NewHub(logger, 100)
+	hub := usecase.NewHub(logger, 100)
 	go hub.Run()
 	defer hub.Shutdown(context.Background())
 
@@ -286,28 +292,21 @@ func TestRateLimitingIntegration(t *testing.T) {
 	jwtValidator := &mockJWTValidator{userID: "user123"}
 
 	// Create strict rate limiter
-	config := auth.RateLimitConfig{
-		MaxConnectionsPerUser:           2,
-		MaxConnectionsPerUserPerProject: 1,
-		MaxConnectionsPerUserPerJob:     1,
-		ConnectionRateLimit:             5,
-		RateLimitWindow:                 time.Minute,
-	}
-	rateLimiter := auth.NewConnectionTracker(config, logger)
+	rateLimiter := NewMockRateLimiter(2, 5, time.Minute)
 
 	// Create handler
-	wsConfig := WSConfig{
+	wsConfig := httpDelivery.WSConfig{
 		PongWait:   60 * time.Second,
 		PingPeriod: 54 * time.Second,
 		WriteWait:  10 * time.Second,
 	}
-	cookieConfig := CookieConfig{Name: "auth_token"}
+	cookieConfig := httpDelivery.CookieConfig{Name: "auth_token"}
 
-	options := &HandlerOptions{
+	options := &httpDelivery.HandlerOptions{
 		RateLimiter: rateLimiter,
 	}
 
-	handler := NewHandlerWithOptions(hub, jwtValidator, logger, wsConfig, nil, cookieConfig, "dev", options)
+	handler := httpDelivery.NewHandlerWithOptions(hub, jwtValidator, logger, wsConfig, nil, cookieConfig, "dev", options)
 
 	// Create test server
 	gin.SetMode(gin.TestMode)
@@ -343,7 +342,7 @@ func TestInvalidInputHandling(t *testing.T) {
 	logger := &integrationLogger{}
 
 	// Create hub
-	hub := NewHub(logger, 100)
+	hub := usecase.NewHub(logger, 100)
 	go hub.Run()
 	defer hub.Shutdown(context.Background())
 
@@ -351,14 +350,14 @@ func TestInvalidInputHandling(t *testing.T) {
 	jwtValidator := &mockJWTValidator{userID: "user123"}
 
 	// Create handler
-	wsConfig := WSConfig{
+	wsConfig := httpDelivery.WSConfig{
 		PongWait:   60 * time.Second,
 		PingPeriod: 54 * time.Second,
 		WriteWait:  10 * time.Second,
 	}
-	cookieConfig := CookieConfig{Name: "auth_token"}
+	cookieConfig := httpDelivery.CookieConfig{Name: "auth_token"}
 
-	handler := NewHandler(hub, jwtValidator, logger, wsConfig, nil, cookieConfig, "dev")
+	handler := httpDelivery.NewHandler(hub, jwtValidator, logger, wsConfig, nil, cookieConfig, "dev")
 
 	// Create test server
 	gin.SetMode(gin.TestMode)

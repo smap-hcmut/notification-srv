@@ -5,7 +5,6 @@ environment:
   name: development
 
 server:
-  host: 0.0.0.0
   port: 8081
   mode: debug
 
@@ -20,13 +19,6 @@ redis:
   port: 6379
   password: ""
   db: 0
-  use_tls: false
-  max_retries: 3
-  min_idle_conns: 10
-  pool_size: 100
-  pool_timeout: 4s
-  conn_max_idle_time: 5m
-  conn_max_lifetime: 30m
 
 websocket:
   ping_interval: 30s
@@ -49,5 +41,4 @@ cookie:
   name: smap_auth_token
 
 discord:
-  webhook_id: ""
-  webhook_token: ""
+  webhook_url: ""

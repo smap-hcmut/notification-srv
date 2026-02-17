@@ -2,7 +2,7 @@
 
 # Variables
 BINARY_NAME=websocket-server
-DOCKER_IMAGE=smap-websocket
+DOCKER_IMAGE=notification-srv
 DOCKER_TAG=latest
 GO_FILES=$(shell find . -name '*.go' -type f)
 
@@ -14,20 +14,20 @@ help: ## Show this help message
 
 run: ## Run the WebSocket server locally
 	@echo "Starting WebSocket server..."
-	go run ./cmd/server
+	go run ./cmd/api
 
 build: ## Build the binary
 	@echo "Building binary..."
-	go build -o $(BINARY_NAME) -ldflags="-s -w" ./cmd/server
+	go build -o $(BINARY_NAME) -ldflags="-s -w" ./cmd/api
 	@echo "Binary built: $(BINARY_NAME)"
 
 docker-build: ## Build Docker image (local platform)
 	@echo "Building Docker image for local platform..."
-	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f cmd/server/Dockerfile .
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f cmd/api/Dockerfile .
 
 docker-build-amd64: ## Build Docker image for AMD64 servers
 	@echo "Building Docker image for AMD64..."
-	docker buildx build --platform linux/amd64 -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f cmd/server/Dockerfile .
+	docker buildx build --platform linux/amd64 -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f cmd/api/Dockerfile .
 
 docker-run: docker-build ## Build and run Docker container
 	@echo "Running Docker container..."

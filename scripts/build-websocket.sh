@@ -15,8 +15,8 @@ NC='\033[0m'
 # Configuration
 REGISTRY="${REGISTRY:-registry.tantai.dev}"
 PROJECT="smap"
-SERVICE="smap-websocket"
-DOCKERFILE="cmd/server/Dockerfile"
+SERVICE="notification-srv"
+DOCKERFILE="cmd/api/Dockerfile"
 PLATFORM="linux/amd64"
 
 # Helper functions

@@ -38,7 +38,6 @@ type EnvironmentConfig struct {
 
 // ServerConfig is the configuration for the WebSocket server
 type ServerConfig struct {
-	Host string
 	Port int
 	Mode string
 }
@@ -49,15 +48,6 @@ type RedisConfig struct {
 	Port     int
 	Password string
 	DB       int
-	UseTLS   bool
-
-	// Connection pool settings
-	MaxRetries      int
-	MinIdleConns    int
-	PoolSize        int
-	PoolTimeout     time.Duration
-	ConnMaxIdleTime time.Duration
-	ConnMaxLifetime time.Duration
 }
 
 // WebSocketConfig is the configuration for WebSocket connections
@@ -96,8 +86,7 @@ type LoggerConfig struct {
 
 // DiscordConfig is the configuration for Discord webhook notifications
 type DiscordConfig struct {
-	WebhookID    string
-	WebhookToken string
+	WebhookURL string
 }
 
 // Load loads configuration using Viper
@@ -112,6 +101,9 @@ func Load() (*Config, error) {
 	// Enable environment variable override
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	if err := bindEnv(); err != nil {
+		return nil, fmt.Errorf("error binding env vars: %w", err)
+	}
 
 	// Set defaults
 	setDefaults()
@@ -130,7 +122,6 @@ func Load() (*Config, error) {
 	cfg.Environment.Name = viper.GetString("environment.name")
 
 	// Server
-	cfg.Server.Host = viper.GetString("server.host")
 	cfg.Server.Port = viper.GetInt("server.port")
 	cfg.Server.Mode = viper.GetString("server.mode")
 
@@ -145,13 +136,6 @@ func Load() (*Config, error) {
 	cfg.Redis.Port = viper.GetInt("redis.port")
 	cfg.Redis.Password = viper.GetString("redis.password")
 	cfg.Redis.DB = viper.GetInt("redis.db")
-	cfg.Redis.UseTLS = viper.GetBool("redis.use_tls")
-	cfg.Redis.MaxRetries = viper.GetInt("redis.max_retries")
-	cfg.Redis.MinIdleConns = viper.GetInt("redis.min_idle_conns")
-	cfg.Redis.PoolSize = viper.GetInt("redis.pool_size")
-	cfg.Redis.PoolTimeout = viper.GetDuration("redis.pool_timeout")
-	cfg.Redis.ConnMaxIdleTime = viper.GetDuration("redis.conn_max_idle_time")
-	cfg.Redis.ConnMaxLifetime = viper.GetDuration("redis.conn_max_lifetime")
 
 	// WebSocket
 	cfg.WebSocket.PingInterval = viper.GetDuration("websocket.ping_interval")
@@ -174,8 +158,7 @@ func Load() (*Config, error) {
 	cfg.Cookie.Name = viper.GetString("cookie.name")
 
 	// Discord
-	cfg.Discord.WebhookID = viper.GetString("discord.webhook_id")
-	cfg.Discord.WebhookToken = viper.GetString("discord.webhook_token")
+	cfg.Discord.WebhookURL = viper.GetString("discord.webhook_url")
 
 	// Validate required fields
 	if err := validate(cfg); err != nil {
@@ -190,7 +173,6 @@ func setDefaults() {
 	viper.SetDefault("environment.name", "production")
 
 	// Server
-	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", 8081)
 	viper.SetDefault("server.mode", "release")
 
@@ -205,13 +187,6 @@ func setDefaults() {
 	viper.SetDefault("redis.port", 6379)
 	viper.SetDefault("redis.password", "")
 	viper.SetDefault("redis.db", 0)
-	viper.SetDefault("redis.use_tls", false)
-	viper.SetDefault("redis.max_retries", 3)
-	viper.SetDefault("redis.min_idle_conns", 10)
-	viper.SetDefault("redis.pool_size", 100)
-	viper.SetDefault("redis.pool_timeout", 4*time.Second)
-	viper.SetDefault("redis.conn_max_idle_time", 5*time.Minute)
-	viper.SetDefault("redis.conn_max_lifetime", 30*time.Minute)
 
 	// WebSocket
 	viper.SetDefault("websocket.ping_interval", 30*time.Second)
@@ -229,6 +204,9 @@ func setDefaults() {
 	viper.SetDefault("cookie.max_age", 7200)
 	viper.SetDefault("cookie.max_age_remember", 2592000)
 	viper.SetDefault("cookie.name", "smap_auth_token")
+
+	// Discord (optional)
+	viper.SetDefault("discord.webhook_url", "")
 }
 
 func validate(cfg *Config) error {
@@ -238,6 +216,11 @@ func validate(cfg *Config) error {
 	}
 	if len(cfg.JWT.SecretKey) < 32 {
 		return fmt.Errorf("jwt.secret_key must be at least 32 characters for security")
+	}
+
+	// Validate Server
+	if cfg.Server.Port <= 0 || cfg.Server.Port > 65535 {
+		return fmt.Errorf("server.port is invalid")
 	}
 
 	// Validate Redis
@@ -253,5 +236,53 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("cookie.name is required")
 	}
 
+	return nil
+}
+
+func bindEnv() error {
+	// Support both canonical env var names (SERVER_PORT, WEBSOCKET_*, ...)
+	// and legacy names used in some manifests (WS_*, ENV).
+	binds := map[string][]string{
+		"environment.name": {"ENVIRONMENT_NAME", "ENV"},
+
+		"server.port": {"SERVER_PORT", "WS_PORT"},
+		"server.mode": {"SERVER_MODE", "WS_MODE"},
+
+		"logger.level":         {"LOGGER_LEVEL"},
+		"logger.mode":          {"LOGGER_MODE"},
+		"logger.encoding":      {"LOGGER_ENCODING"},
+		"logger.color_enabled": {"LOGGER_COLOR_ENABLED"},
+
+		"redis.host":     {"REDIS_HOST"},
+		"redis.port":     {"REDIS_PORT"},
+		"redis.password": {"REDIS_PASSWORD"},
+		"redis.db":       {"REDIS_DB"},
+
+		"websocket.ping_interval":     {"WEBSOCKET_PING_INTERVAL", "WS_PING_INTERVAL"},
+		"websocket.pong_wait":         {"WEBSOCKET_PONG_WAIT", "WS_PONG_WAIT"},
+		"websocket.write_wait":        {"WEBSOCKET_WRITE_WAIT", "WS_WRITE_WAIT"},
+		"websocket.max_message_size":  {"WEBSOCKET_MAX_MESSAGE_SIZE", "WS_MAX_MESSAGE_SIZE"},
+		"websocket.read_buffer_size":  {"WEBSOCKET_READ_BUFFER_SIZE", "WS_READ_BUFFER_SIZE"},
+		"websocket.write_buffer_size": {"WEBSOCKET_WRITE_BUFFER_SIZE", "WS_WRITE_BUFFER_SIZE"},
+		"websocket.max_connections":   {"WEBSOCKET_MAX_CONNECTIONS", "WS_MAX_CONNECTIONS"},
+
+		"jwt.secret_key": {"JWT_SECRET_KEY"},
+
+		"cookie.domain":           {"COOKIE_DOMAIN"},
+		"cookie.secure":           {"COOKIE_SECURE"},
+		"cookie.samesite":         {"COOKIE_SAMESITE"},
+		"cookie.max_age":          {"COOKIE_MAX_AGE"},
+		"cookie.max_age_remember": {"COOKIE_MAX_AGE_REMEMBER"},
+		"cookie.name":             {"COOKIE_NAME"},
+
+		"discord.webhook_url": {"DISCORD_WEBHOOK_URL"},
+	}
+
+	for key, envs := range binds {
+		args := append([]string{key}, envs...)
+		if err := viper.BindEnv(args...); err != nil {
+			return fmt.Errorf("bind %s: %w", key, err)
+		}
+	}
 	return nil
 }

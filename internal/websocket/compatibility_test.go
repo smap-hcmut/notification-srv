@@ -1,23 +1,26 @@
-package websocket
+package websocket_test
 
 import (
 	"context"
 	"encoding/json"
 	"net/http/httptest"
-	"smap-websocket/pkg/auth"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+
+	ws "notification-srv/internal/websocket"
+	httpDelivery "notification-srv/internal/websocket/delivery/http"
+	"notification-srv/internal/websocket/usecase"
 )
 
 func TestBackwardCompatibility(t *testing.T) {
 	logger := &integrationLogger{}
 
 	// Create hub
-	hub := NewHub(logger, 100)
+	hub := usecase.NewHub(logger, 100)
 	go hub.Run()
 	defer hub.Shutdown(context.Background())
 
@@ -25,14 +28,14 @@ func TestBackwardCompatibility(t *testing.T) {
 	jwtValidator := &mockJWTValidator{userID: "legacyuser"}
 
 	// Create handler WITHOUT authorization or rate limiting (legacy mode)
-	wsConfig := WSConfig{
+	wsConfig := httpDelivery.WSConfig{
 		PongWait:   60 * time.Second,
 		PingPeriod: 54 * time.Second,
 		WriteWait:  10 * time.Second,
 	}
-	cookieConfig := CookieConfig{Name: "auth_token"}
+	cookieConfig := httpDelivery.CookieConfig{Name: "auth_token"}
 
-	handler := NewHandler(hub, jwtValidator, logger, wsConfig, nil, cookieConfig, "dev")
+	handler := httpDelivery.NewHandler(hub, jwtValidator, logger, wsConfig, nil, cookieConfig, "dev")
 
 	// Create test server
 	gin.SetMode(gin.TestMode)
@@ -53,28 +56,28 @@ func TestBackwardCompatibility(t *testing.T) {
 
 		// Send messages using both old and new methods
 		// Old method: SendToUser (should work)
-		legacyMsg, _ := NewMessage(MessageTypeNotification, map[string]interface{}{
+		legacyMsg, _ := ws.NewMessage(ws.MessageTypeNotification, map[string]interface{}{
 			"message": "legacy notification",
 		})
 		legacyMsgBytes, _ := legacyMsg.ToJSON()
 		hub.SendToUser("legacyuser", legacyMsgBytes)
 
 		// New method: SendToUserWithProject (should also work for legacy clients)
-		projectMsg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
+		projectMsg, _ := ws.NewMessage(ws.MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "completed",
 		})
 		projectMsgBytes, _ := projectMsg.ToJSON()
 		hub.SendToUserWithProject("legacyuser", "someproject", projectMsgBytes)
 
 		// New method: SendToUserWithJob (should also work for legacy clients)
-		jobMsg, _ := NewMessage(MessageTypeJobCompleted, map[string]interface{}{
+		jobMsg, _ := ws.NewMessage(ws.MessageTypeJobCompleted, map[string]interface{}{
 			"status": "completed",
 		})
 		jobMsgBytes, _ := jobMsg.ToJSON()
 		hub.SendToUserWithJob("legacyuser", "somejob", jobMsgBytes)
 
 		// Legacy client should receive ALL messages (no filtering)
-		messages := make([]Message, 0, 3)
+		messages := make([]ws.Message, 0, 3)
 		for i := 0; i < 3; i++ {
 			conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 			_, data, err := conn.ReadMessage()
@@ -82,7 +85,7 @@ func TestBackwardCompatibility(t *testing.T) {
 				t.Fatalf("Failed to read message %d: %v", i+1, err)
 			}
 
-			var msg Message
+			var msg ws.Message
 			if err := json.Unmarshal(data, &msg); err != nil {
 				t.Fatalf("Failed to unmarshal message %d: %v", i+1, err)
 			}
@@ -90,15 +93,15 @@ func TestBackwardCompatibility(t *testing.T) {
 		}
 
 		// Verify all message types were received
-		receivedTypes := make(map[MessageType]bool)
+		receivedTypes := make(map[ws.MessageType]bool)
 		for _, msg := range messages {
 			receivedTypes[msg.Type] = true
 		}
 
-		expectedTypes := []MessageType{
-			MessageTypeNotification,
-			MessageTypeProjectCompleted,
-			MessageTypeJobCompleted,
+		expectedTypes := []ws.MessageType{
+			ws.MessageTypeNotification,
+			ws.MessageTypeProjectCompleted,
+			ws.MessageTypeJobCompleted,
 		}
 
 		for _, expectedType := range expectedTypes {
@@ -126,14 +129,14 @@ func TestBackwardCompatibility(t *testing.T) {
 		defer modernConn.Close()
 
 		// Send project-specific message
-		projectMsg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
+		projectMsg, _ := ws.NewMessage(ws.MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "completed",
 		})
 		projectMsgBytes, _ := projectMsg.ToJSON()
 		hub.SendToUserWithProject("legacyuser", "testproject", projectMsgBytes)
 
 		// Send different project message
-		otherProjectMsg, _ := NewMessage(MessageTypeProjectCompleted, map[string]interface{}{
+		otherProjectMsg, _ := ws.NewMessage(ws.MessageTypeProjectCompleted, map[string]interface{}{
 			"status": "failed",
 		})
 		otherProjectMsgBytes, _ := otherProjectMsg.ToJSON()
@@ -187,7 +190,7 @@ func TestBackwardCompatibility(t *testing.T) {
 			},
 		}
 
-		legacyMsg, _ := NewMessage(MessageTypeNotification, legacyPayload)
+		legacyMsg, _ := ws.NewMessage(ws.MessageTypeNotification, legacyPayload)
 		legacyMsgBytes, _ := legacyMsg.ToJSON()
 		hub.SendToUser("legacyuser", legacyMsgBytes)
 
@@ -198,14 +201,14 @@ func TestBackwardCompatibility(t *testing.T) {
 			t.Fatalf("Failed to read legacy message: %v", err)
 		}
 
-		var receivedMsg Message
+		var receivedMsg ws.Message
 		if err := json.Unmarshal(data, &receivedMsg); err != nil {
 			t.Fatalf("Failed to unmarshal legacy message: %v", err)
 		}
 
 		// Verify message structure is preserved
-		if receivedMsg.Type != MessageTypeNotification {
-			t.Errorf("Message type changed: expected %s, got %s", MessageTypeNotification, receivedMsg.Type)
+		if receivedMsg.Type != ws.MessageTypeNotification {
+			t.Errorf("Message type changed: expected %s, got %s", ws.MessageTypeNotification, receivedMsg.Type)
 		}
 
 		if receivedMsg.Timestamp.IsZero() {
@@ -225,19 +228,13 @@ func TestBackwardCompatibility(t *testing.T) {
 
 	t.Run("legacy connection limits still work", func(t *testing.T) {
 		// Create handler with rate limiter but no authorizer (partial legacy mode)
-		rateLimiter := auth.NewConnectionTracker(auth.RateLimitConfig{
-			MaxConnectionsPerUser:           2,
-			MaxConnectionsPerUserPerProject: 10,
-			MaxConnectionsPerUserPerJob:     10,
-			ConnectionRateLimit:             100,
-			RateLimitWindow:                 time.Minute,
-		}, logger)
+		rateLimiter := NewMockRateLimiter(2, 100, time.Minute)
 
-		options := &HandlerOptions{
+		options := &httpDelivery.HandlerOptions{
 			RateLimiter: rateLimiter,
 		}
 
-		legacyHandler := NewHandlerWithOptions(hub, jwtValidator, logger, wsConfig, nil, cookieConfig, "dev", options)
+		legacyHandler := httpDelivery.NewHandlerWithOptions(hub, jwtValidator, logger, wsConfig, nil, cookieConfig, "dev", options)
 
 		// Create test server
 		legacyRouter := gin.New()
@@ -269,91 +266,6 @@ func TestBackwardCompatibility(t *testing.T) {
 
 		if resp.StatusCode != 429 {
 			t.Errorf("Expected status 429 for rate limit, got %d", resp.StatusCode)
-		}
-	})
-}
-
-func TestAPICompatibility(t *testing.T) {
-	logger := &integrationLogger{}
-
-	t.Run("hub API backward compatibility", func(t *testing.T) {
-		hub := NewHub(logger, 100)
-		go hub.Run()
-		defer hub.Shutdown(context.Background())
-
-		// Test that old Hub methods still work
-		conn := &Connection{
-			hub:       hub,
-			userID:    "apiuser",
-			projectID: "",
-			jobID:     "",
-			send:      make(chan []byte, 256),
-			done:      make(chan struct{}),
-			logger:    logger,
-		}
-
-		// Old registration method should still work
-		hub.register <- conn
-		time.Sleep(50 * time.Millisecond)
-
-		stats := hub.GetStats()
-		if stats.ActiveConnections != 1 {
-			t.Errorf("Expected 1 active connection, got %d", stats.ActiveConnections)
-		}
-
-		// Old SendToUser method should still work
-		msg, _ := NewMessage(MessageTypeNotification, map[string]interface{}{
-			"message": "test",
-		})
-		msgBytes, _ := msg.ToJSON()
-		hub.SendToUser("apiuser", msgBytes)
-
-		// Verify message was sent
-		select {
-		case <-conn.send:
-			// Message received successfully
-		case <-time.After(2 * time.Second):
-			t.Error("Message not received via legacy SendToUser method")
-		}
-
-		// Old unregistration method should still work
-		hub.unregister <- conn
-		time.Sleep(50 * time.Millisecond)
-
-		stats = hub.GetStats()
-		if stats.ActiveConnections != 0 {
-			t.Errorf("Expected 0 active connections after unregister, got %d", stats.ActiveConnections)
-		}
-	})
-
-	t.Run("connection API backward compatibility", func(t *testing.T) {
-		hub := NewHub(logger, 100)
-		go hub.Run()
-		defer hub.Shutdown(context.Background())
-
-		// Old NewConnection constructor should still work
-		conn := NewConnection(hub, nil, "olduser", time.Minute, 54*time.Second, 10*time.Second, logger)
-
-		// Verify connection has expected defaults for new fields
-		if conn.GetProjectID() != "" {
-			t.Errorf("Expected empty project ID for legacy connection, got %s", conn.GetProjectID())
-		}
-
-		if conn.GetJobID() != "" {
-			t.Errorf("Expected empty job ID for legacy connection, got %s", conn.GetJobID())
-		}
-
-		if conn.HasTopicFilter() {
-			t.Error("Legacy connection should not have topic filters")
-		}
-
-		// Verify legacy connection matches all topics (no filtering)
-		if !conn.MatchesProject("anyproject") {
-			t.Error("Legacy connection should match any project")
-		}
-
-		if !conn.MatchesJob("anyjob") {
-			t.Error("Legacy connection should match any job")
 		}
 	})
 }

@@ -3,26 +3,20 @@ package redis
 import (
 	"context"
 	"fmt"
-	"smap-websocket/config"
-	pkgRedis "smap-websocket/pkg/redis"
+	"notification-srv/config"
+	pkgRedis "notification-srv/pkg/redis"
 )
 
-var client *pkgRedis.Client
+var client pkgRedis.IRedis
 
 // Connect initializes and returns a Redis client
-func Connect(ctx context.Context, cfg config.RedisConfig) (*pkgRedis.Client, error) {
+func Connect(ctx context.Context, cfg config.RedisConfig) (pkgRedis.IRedis, error) {
 	var err error
-	client, err = pkgRedis.NewClient(pkgRedis.Config{
-		Host:            fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		Password:        cfg.Password,
-		DB:              cfg.DB,
-		UseTLS:          cfg.UseTLS,
-		MaxRetries:      cfg.MaxRetries,
-		MinIdleConns:    cfg.MinIdleConns,
-		PoolSize:        cfg.PoolSize,
-		PoolTimeout:     cfg.PoolTimeout,
-		ConnMaxIdleTime: cfg.ConnMaxIdleTime,
-		ConnMaxLifetime: cfg.ConnMaxLifetime,
+	client, err = pkgRedis.New(pkgRedis.RedisConfig{
+		Host:     cfg.Host,
+		Port:     cfg.Port,
+		Password: cfg.Password,
+		DB:       cfg.DB,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
