@@ -30,6 +30,4 @@ Thumbs.db
 # Documentation
 docs
 
-notification-config.yaml
-
-term/
+config/notification-config.yaml
