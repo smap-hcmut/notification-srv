@@ -100,7 +100,8 @@ func (uc *implUseCase) ProcessMessage(ctx context.Context, input ws.ProcessMessa
 	// 4. Dispatch to alert channel (Discord) if needed
 	// Note: We use the alertUC for this.
 	// Logic: If it is a crisis alert, dispatch it.
-	if msgType == ws.MessageTypeCrisisAlert {
+	switch msgType {
+	case ws.MessageTypeCrisisAlert:
 		// Needs unmarshaling payload to CrisisAlertPayload to pass to DispatchCrisisAlert
 		// transformMessage already did that but returned NotificationOutput.Payload as interface{}
 		if payloadData, ok := output.Payload.(ws.CrisisAlertPayload); ok {
@@ -123,6 +124,46 @@ func (uc *implUseCase) ProcessMessage(ctx context.Context, input ws.ProcessMessa
 			go func() {
 				if err := uc.alertUC.DispatchCrisisAlert(context.Background(), alertInput); err != nil {
 					uc.logger.Warnf(ctx, "alert dispatch failed: %v", err)
+				}
+			}()
+		}
+
+	case ws.MessageTypeDataOnboarding:
+		if payloadData, ok := output.Payload.(ws.DataOnboardingPayload); ok {
+			onboardingInput := alert.DataOnboardingInput{
+				ProjectID:   payloadData.ProjectID,
+				SourceID:    payloadData.SourceID,
+				SourceName:  payloadData.SourceName,
+				SourceType:  payloadData.SourceType,
+				Status:      payloadData.Status,
+				RecordCount: payloadData.RecordCount,
+				ErrorCount:  payloadData.ErrorCount,
+				Message:     payloadData.Message,
+				// Duration is missing in payload, maybe calculate or ignore
+			}
+
+			go func() {
+				if err := uc.alertUC.DispatchDataOnboarding(context.Background(), onboardingInput); err != nil {
+					uc.logger.Warnf(ctx, "onboarding alert dispatch failed: %v", err)
+				}
+			}()
+		}
+
+	case ws.MessageTypeCampaignEvent:
+		if payloadData, ok := output.Payload.(ws.CampaignEventPayload); ok {
+			campaignInput := alert.CampaignEventInput{
+				CampaignID:   payloadData.CampaignID,
+				CampaignName: payloadData.CampaignName,
+				EventType:    payloadData.EventType,
+				ResourceName: payloadData.ResourceName,
+				ResourceURL:  payloadData.ResourceURL,
+				Message:      payloadData.Message,
+				Timestamp:    output.Timestamp,
+			}
+
+			go func() {
+				if err := uc.alertUC.DispatchCampaignEvent(context.Background(), campaignInput); err != nil {
+					uc.logger.Warnf(ctx, "campaign alert dispatch failed: %v", err)
 				}
 			}()
 		}

@@ -65,7 +65,7 @@ sequenceDiagram
     Sub->>UC: ProcessMessage(channel, payload)
     UC->>UC: Parse Channel & Detect Type
     UC->>UC: Validate & Transform Payload
-    
+
     rect rgb(255, 230, 230)
     Note over UC, Alert: Critical Path
     alt is CRISIS_ALERT
@@ -89,46 +89,46 @@ The service supports 4 core message types for the new Analytics Platform.
 
 Updates on the status of connecting new data sources (e.g., linking a TikTok account).
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `project_id` | string | Project context |
-| `source_name` | string | "My TikTok Page" |
-| `status` | string | `PENDING`, `COMPLETED`, `FAILED` |
-| `progress` | int | 0-100 |
+| Field         | Type   | Description                      |
+| :------------ | :----- | :------------------------------- |
+| `project_id`  | string | Project context                  |
+| `source_name` | string | "My TikTok Page"                 |
+| `status`      | string | `PENDING`, `COMPLETED`, `FAILED` |
+| `progress`    | int    | 0-100                            |
 
 ### 4.2 Analytics Pipeline (`ANALYTICS_PIPELINE`)
 
 Real-time progress of data processing jobs (Crawling -> Cleaning -> Analyzing).
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `project_id` | string | Project context |
-| `current_phase` | string | `CRAWLING`, `ANALYZING`, `INDEXING` |
-| `progress` | int | Overall progress (0-100) |
-| `estimated_time_ms` | int64 | Remaining time estimate |
+| Field               | Type   | Description                         |
+| :------------------ | :----- | :---------------------------------- |
+| `project_id`        | string | Project context                     |
+| `current_phase`     | string | `CRAWLING`, `ANALYZING`, `INDEXING` |
+| `progress`          | int    | Overall progress (0-100)            |
+| `estimated_time_ms` | int64  | Remaining time estimate             |
 
 ### 4.3 Crisis Alert (`CRISIS_ALERT`)
 
 Critical business alerts detected by the system (e.g., negative sentiment spike).
-*Note: These are sent to **both** WebSocket (dashboard) and Discord.*
+_Note: These are sent to **both** WebSocket (dashboard) and Discord._
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `severity` | string | `CRITICAL`, `WARNING`, `INFO` |
-| `metric` | string | e.g., "Sentiment Score" |
-| `current_value` | float | e.g., -0.85 |
-| `threshold` | float | e.g., -0.50 |
-| `affected_aspects`| array | ["Service Quality", "Pricing"] |
+| Field              | Type   | Description                    |
+| :----------------- | :----- | :----------------------------- |
+| `severity`         | string | `CRITICAL`, `WARNING`, `INFO`  |
+| `metric`           | string | e.g., "Sentiment Score"        |
+| `current_value`    | float  | e.g., -0.85                    |
+| `threshold`        | float  | e.g., -0.50                    |
+| `affected_aspects` | array  | ["Service Quality", "Pricing"] |
 
 ### 4.4 Campaign Event (`CAMPAIGN_EVENT`)
 
 Lifecycle events for marketing campaigns.
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `event_type` | string | `CREATED`, `STARTED`, `PAUSED`, `FINISHED` |
-| `campaign_name` | string | "Summer Sale 2026" |
-| `message` | string | Human-readable description |
+| Field           | Type   | Description                                |
+| :-------------- | :----- | :----------------------------------------- |
+| `event_type`    | string | `CREATED`, `STARTED`, `PAUSED`, `FINISHED` |
+| `campaign_name` | string | "Summer Sale 2026"                         |
+| `message`       | string | Human-readable description                 |
 
 ---
 
@@ -157,9 +157,9 @@ The `internal/alert` domain maps internal alerts to rich Discord Embeds.
 
 - **User Mapping**: One UserID can have multiple connections (tabs/devices).
 - **Graceful Shutdown**:
-    1. Stop Redis Subscriber.
-    2. Close all WebSocket connections with `CloseServiceRestart` code.
-    3. Shutdown HTTP Server.
+  1. Stop Redis Subscriber.
+  2. Close all WebSocket connections with `CloseServiceRestart` code.
+  3. Shutdown HTTP Server.
 
 ---
 

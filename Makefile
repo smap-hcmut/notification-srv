@@ -1,10 +1,4 @@
-.PHONY: help run build docker-build docker-run clean test lint
-
-# Variables
-BINARY_NAME=websocket-server
-DOCKER_IMAGE=notification-srv
-DOCKER_TAG=latest
-GO_FILES=$(shell find . -name '*.go' -type f)
+.PHONY: help run test lint deps
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'

@@ -11,8 +11,8 @@ import (
 	"notification-srv/config/redis"
 	"notification-srv/internal/httpserver"
 	"notification-srv/pkg/discord"
-	"notification-srv/pkg/scope"
 	"notification-srv/pkg/log"
+	"notification-srv/pkg/scope"
 )
 
 // @title       SMAP Notification Service API
@@ -76,6 +76,7 @@ func main() {
 	httpServer, err := httpserver.New(logger, httpserver.Config{
 		// Server configuration
 		Port:        cfg.Server.Port,
+		Mode:        cfg.Server.Mode,
 		Environment: cfg.Environment.Name,
 
 		// WebSocket configuration

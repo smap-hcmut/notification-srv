@@ -33,7 +33,7 @@ The existing tests in `internal/websocket/` are broken because they reference ol
 - **Status**: Likely BROKEN.
 - **Plan**: Assess if backward compatibility is still needed. The master proposal implies a "Refactor", but also "Delete legacy types".
   - **Decision**: Since we deleted legacy types (`MessageTypeJob...`), backward compatibility with strict legacy types is impossible.
-  - **Action**: Remove this file or adapt it to test that *new* clients work as expected. Given the major version change (refactor), we will REMOVE it or Replace with `functional_test.go`.
+  - **Action**: Remove this file or adapt it to test that _new_ clients work as expected. Given the major version change (refactor), we will REMOVE it or Replace with `functional_test.go`.
 
 ### 2.3 `internal/websocket/mock_rate_limiter_test.go` & `types_test.go`
 

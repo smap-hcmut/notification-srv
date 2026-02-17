@@ -43,6 +43,7 @@ type HTTPServer struct {
 type Config struct {
 	// Server configuration
 	Port        int
+	Mode        string
 	Environment string
 
 	// WebSocket configuration
@@ -60,7 +61,9 @@ type Config struct {
 // New creates a new HTTPServer instance with the provided configuration.
 // Note: This does NOT start any goroutines. Use (*HTTPServer).Run() to start the service.
 func New(logger log.Logger, cfg Config) (*HTTPServer, error) {
-	gin.SetMode(cfg.Environment) // cfg.Environment should map to gin mode by convention
+	// Map environment name to gin mode.
+	// We only allow standard gin modes: debug, release, test.
+	gin.SetMode(cfg.Mode)
 
 	srv := &HTTPServer{
 		// Server configuration
