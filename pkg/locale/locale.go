@@ -5,12 +5,8 @@ import (
 	"strings"
 )
 
-// ParseLang parses and validates a language code.
-// It returns the default language if the provided code is not supported.
-// The input is case-insensitive and trimmed of whitespace.
 func ParseLang(lang string) string {
 	lang = strings.TrimSpace(strings.ToLower(lang))
-
 	switch lang {
 	case EN, "english":
 		return EN
@@ -23,7 +19,6 @@ func ParseLang(lang string) string {
 	}
 }
 
-// IsValidLang checks if a language code is supported.
 func IsValidLang(lang string) bool {
 	lang = strings.TrimSpace(strings.ToLower(lang))
 	for _, supported := range LangList {
@@ -34,7 +29,6 @@ func IsValidLang(lang string) bool {
 	return false
 }
 
-// GetLang retrieves the locale from context, returning the default if not found.
 func GetLang(ctx context.Context) string {
 	lang, ok := GetLocaleFromContext(ctx)
 	if !ok {
@@ -43,17 +37,13 @@ func GetLang(ctx context.Context) string {
 	return lang
 }
 
-// SetLocaleToContext sets the locale in the context for use in handlers.
 func SetLocaleToContext(ctx context.Context, lang string) context.Context {
-	// Validate before setting
 	if !IsValidLang(lang) {
 		lang = DefaultLang
 	}
 	return context.WithValue(ctx, Locale{}, lang)
 }
 
-// GetLocaleFromContext retrieves the locale from context.
-// Returns the locale and true if found, empty string and false otherwise.
 func GetLocaleFromContext(ctx context.Context) (string, bool) {
 	lang, ok := ctx.Value(Locale{}).(string)
 	if !ok || lang == "" {

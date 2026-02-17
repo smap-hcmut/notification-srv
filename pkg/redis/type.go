@@ -1,19 +1,14 @@
 package redis
 
-import "time"
+import goredis "github.com/redis/go-redis/v9"
 
-// Config holds Redis connection configuration
-type Config struct {
+type RedisConfig struct {
 	Host     string
+	Port     int
 	Password string
 	DB       int
-	UseTLS   bool
+}
 
-	// Connection pool settings
-	MaxRetries      int
-	MinIdleConns    int
-	PoolSize        int
-	PoolTimeout     time.Duration
-	ConnMaxIdleTime time.Duration
-	ConnMaxLifetime time.Duration
+type redisImpl struct {
+	client *goredis.Client
 }

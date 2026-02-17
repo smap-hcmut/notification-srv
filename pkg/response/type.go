@@ -1,8 +1,12 @@
 package response
 
-import "smap-websocket/pkg/errors"
+import (
+	"encoding/json"
+	"time"
 
-// Resp is the response format.
+	"notification-srv/pkg/errors"
+)
+
 type Resp struct {
 	ErrorCode int    `json:"error_code"`
 	Message   string `json:"message"`
@@ -10,5 +14,16 @@ type Resp struct {
 	Errors    any    `json:"errors,omitempty"`
 }
 
-// ErrorMapping is a map of error to HTTPError.
 type ErrorMapping map[error]*errors.HTTPError
+
+type Date time.Time
+
+func (d Date) MarshalJSON() ([]byte, error) {
+	return json.Marshal(time.Time(d).Local().Format(DateFormat))
+}
+
+type DateTime time.Time
+
+func (d DateTime) MarshalJSON() ([]byte, error) {
+	return json.Marshal(time.Time(d).Local().Format(DateTimeFormat))
+}

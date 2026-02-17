@@ -1,17 +1,12 @@
 package log
 
 const (
-	// ModeProduction is the production logger mode.
-	ModeProduction = "production"
-	// ModeDevelopment is the development logger mode.
+	ModeProduction  = "production"
 	ModeDevelopment = "development"
-	// EncodingConsole is console (human-readable) encoding.
 	EncodingConsole = "console"
-	// EncodingJSON is JSON encoding.
-	EncodingJSON = "json"
+	EncodingJSON    = "json"
 )
 
-// Log level names (for config mapping).
 const (
 	LevelDebug  = "debug"
 	LevelInfo   = "info"

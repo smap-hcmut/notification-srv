@@ -1,13 +1,26 @@
 package jwt
 
-// Config holds JWT configuration
+import (
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+)
+
+const defaultTTL = 8 * time.Hour
+
 type Config struct {
 	SecretKey string
 }
 
-// Claims represents the JWT claims structure
+type managerImpl struct {
+	secretKey []byte
+	issuer    string
+	ttl       time.Duration
+}
+
 type Claims struct {
-	Sub   string `json:"sub"`
-	Email string `json:"email"`
-	Exp   int64  `json:"exp"`
+	Email  string   `json:"email"`
+	Role   string   `json:"role"`
+	Groups []string `json:"groups,omitempty"`
+	jwt.RegisteredClaims
 }

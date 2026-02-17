@@ -2,8 +2,6 @@ package log
 
 import "context"
 
-// Logger defines the interface for structured logging.
-// Implementations are safe for concurrent use.
 type Logger interface {
 	Debug(ctx context.Context, arg ...any)
 	Debugf(ctx context.Context, template string, arg ...any)
@@ -21,7 +19,6 @@ type Logger interface {
 	Fatalf(ctx context.Context, template string, arg ...any)
 }
 
-// Init initializes and returns a new Logger with the provided Zap configuration.
 func Init(cfg ZapConfig) Logger {
 	logger := &zapLogger{cfg: &cfg}
 	logger.init()

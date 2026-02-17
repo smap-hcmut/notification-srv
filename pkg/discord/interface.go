@@ -2,82 +2,13 @@ package discord
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
-	"time"
+	"strings"
 
-	"smap-websocket/pkg/log"
+	"notification-srv/pkg/log"
 )
 
-// DiscordWebhook contains webhook information for Discord API.
-type DiscordWebhook struct {
-	ID    string
-	Token string
-}
-
-// NewDiscordWebhook creates a new Discord webhook instance.
-func NewDiscordWebhook(id, token string) (*DiscordWebhook, error) {
-	if id == "" || token == "" {
-		return nil, errors.New("id and token are required")
-	}
-
-	return &DiscordWebhook{
-		ID:    id,
-		Token: token,
-	}, nil
-}
-
-// Discord is the Discord service implementation for sending webhook messages.
-type Discord struct {
-	l       log.Logger
-	webhook *DiscordWebhook
-	config  Config
-	client  *http.Client
-}
-
-// New creates a new Discord service instance with the provided logger and webhook.
-func New(l log.Logger, webhook *DiscordWebhook) (*Discord, error) {
-	if webhook == nil {
-		return nil, errors.New("webhook is required")
-	}
-
-	if webhook.ID == "" || webhook.Token == "" {
-		return nil, errors.New("webhook ID and token are required")
-	}
-
-	config := DefaultConfig()
-
-	client := &http.Client{
-		Timeout: config.Timeout,
-		Transport: &http.Transport{
-			MaxIdleConns:        10,
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     30 * time.Second,
-		},
-	}
-
-	return &Discord{
-		l:       l,
-		webhook: webhook,
-		config:  config,
-		client:  client,
-	}, nil
-}
-
-// GetWebhookURL returns the Discord webhook URL.
-func (d *Discord) GetWebhookURL() string {
-	return fmt.Sprintf(webhookURL, d.webhook.ID, d.webhook.Token)
-}
-
-// Close closes idle connections in the HTTP client.
-func (d *Discord) Close() error {
-	d.client.CloseIdleConnections()
-	return nil
-}
-
-// DiscordService interface defines methods for Discord service.
-type DiscordService interface {
+type IDiscord interface {
 	SendMessage(ctx context.Context, content string) error
 	SendEmbed(ctx context.Context, options MessageOptions) error
 	SendError(ctx context.Context, title, description string, err error) error
@@ -85,4 +16,33 @@ type DiscordService interface {
 	SendWarning(ctx context.Context, title, description string) error
 	SendInfo(ctx context.Context, title, description string) error
 	ReportBug(ctx context.Context, message string) error
+	SendNotification(ctx context.Context, title, description string, fields map[string]string) error
+	SendActivityLog(ctx context.Context, action, user, details string) error
+	GetWebhookURL() string
+	Close() error
+}
+
+func parseWebhookURL(webhookURL string) (id, token string, err error) {
+	webhookURL = strings.TrimSpace(webhookURL)
+	prefix := "https://discord.com/api/webhooks/"
+	if !strings.HasPrefix(webhookURL, prefix) {
+		return "", "", fmt.Errorf("discord: invalid webhook URL format")
+	}
+	rest := strings.TrimPrefix(webhookURL, prefix)
+	parts := strings.SplitN(rest, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("discord: webhook URL must be .../webhooks/{id}/{token}")
+	}
+	return parts[0], parts[1], nil
+}
+
+func New(l log.Logger, webhookURL string) (IDiscord, error) {
+	if webhookURL == "" {
+		return nil, errWebhookRequired
+	}
+	id, token, err := parseWebhookURL(webhookURL)
+	if err != nil {
+		return nil, err
+	}
+	return newImpl(l, id, token)
 }

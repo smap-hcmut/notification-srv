@@ -2,39 +2,36 @@ package redis
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
+	"time"
 
-	redis_client "github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
-// Client wraps redis.Client with additional functionality
-type Client struct {
-	*redis_client.Client
-	config Config
+type IRedis interface {
+	Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error
+	Get(ctx context.Context, key string) (string, error)
+	Delete(ctx context.Context, keys ...string) error
+	Exists(ctx context.Context, key string) (bool, error)
+	TTL(ctx context.Context, key string) (time.Duration, error)
+	Close() error
+	Ping(ctx context.Context) error
+	GetClient() *goredis.Client
 }
 
-// NewClient creates a new Redis client with the given configuration
-func NewClient(cfg Config) (*Client, error) {
-	opts := &redis_client.Options{
-		Addr:            cfg.Host,
-		Password:        cfg.Password,
-		DB:              cfg.DB,
-		MaxRetries:      cfg.MaxRetries,
-		MinIdleConns:    cfg.MinIdleConns,
-		PoolSize:        cfg.PoolSize,
-		PoolTimeout:     cfg.PoolTimeout,
-		ConnMaxIdleTime: cfg.ConnMaxIdleTime,
-		ConnMaxLifetime: cfg.ConnMaxLifetime,
+func New(cfg RedisConfig) (IRedis, error) {
+	if cfg.Host == "" {
+		return nil, ErrHostRequired
+	}
+	if cfg.Port <= 0 || cfg.Port > 65535 {
+		return nil, ErrInvalidPort
 	}
 
-	if cfg.UseTLS {
-		opts.TLSConfig = &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		}
-	}
-
-	client := redis_client.NewClient(opts)
+	client := goredis.NewClient(&goredis.Options{
+		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		Password: cfg.Password,
+		DB:       cfg.DB,
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultConnectTimeout)
 	defer cancel()
@@ -43,8 +40,5 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
-	return &Client{
-		Client: client,
-		config: cfg,
-	}, nil
+	return &redisImpl{client: client}, nil
 }
