@@ -1,7 +1,7 @@
 package http
 
 import (
-	"notification-srv/internal/websocket"
+	domain "notification-srv/internal/websocket"
 
 	"github.com/gorilla/websocket"
 )
@@ -33,7 +33,7 @@ type UpgradeReq struct {
 
 func (r UpgradeReq) validate() error {
 	if r.Token == "" {
-		return websocket.ErrMissingToken
+		return domain.ErrMissingToken
 	}
 	// ProjectID is optional filter
 	return nil
@@ -41,8 +41,8 @@ func (r UpgradeReq) validate() error {
 
 // toInput maps the DTO and connection to the UseCase input.
 // Note: We cast *websocket.Conn to interface{} here.
-func (r UpgradeReq) toInput(conn *websocket.Conn, userID string) websocket.ConnectionInput {
-	return websocket.ConnectionInput{
+func (r UpgradeReq) toInput(conn *websocket.Conn, userID string) domain.ConnectionInput {
+	return domain.ConnectionInput{
 		UserID:    userID,
 		ProjectID: r.ProjectID,
 		Conn:      conn,

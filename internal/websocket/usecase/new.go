@@ -105,12 +105,21 @@ func (uc *implUseCase) ProcessMessage(ctx context.Context, input ws.ProcessMessa
 		// transformMessage already did that but returned NotificationOutput.Payload as interface{}
 		if payloadData, ok := output.Payload.(ws.CrisisAlertPayload); ok {
 			// Map to alert.CrisisAlertInput
-			// Mapping logic:
 			alertInput := alert.CrisisAlertInput{
-				// Mapping fields... assuming identical fields for now or use struct conversion
+				ProjectID:       payloadData.ProjectID,
+				ProjectName:     payloadData.ProjectName,
+				Severity:        payloadData.Severity,
+				AlertType:       payloadData.AlertType,
+				Metric:          payloadData.Metric,
+				CurrentValue:    payloadData.CurrentValue,
+				Threshold:       payloadData.Threshold,
+				AffectedAspects: payloadData.AffectedAspects,
+				SampleMentions:  payloadData.SampleMentions,
+				TimeWindow:      payloadData.TimeWindow,
+				ActionRequired:  payloadData.ActionRequired,
+				GeneratedAt:     output.Timestamp,
 			}
-			// Dispatch async to not block WebSocket delivery? Or sync?
-			// Usually async.
+
 			go func() {
 				if err := uc.alertUC.DispatchCrisisAlert(context.Background(), alertInput); err != nil {
 					uc.logger.Warnf(ctx, "alert dispatch failed: %v", err)

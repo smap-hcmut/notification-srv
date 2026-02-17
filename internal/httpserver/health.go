@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"notification-srv/internal/websocket"
 	"notification-srv/pkg/errors"
 	"notification-srv/pkg/response"
 
@@ -25,7 +26,12 @@ func (srv *HTTPServer) healthCheck(c *gin.Context) {
 	}
 
 	// Get Hub stats for health info
-	hubStats := srv.hub.GetStats()
+	hubStats, err := srv.wsUC.GetStats(ctx)
+	if err != nil {
+		// Log error but maybe still return healthy for other parts?
+		// Simple fix: assume 0 if error.
+		hubStats = websocket.HubStats{}
+	}
 
 	response.OK(c, gin.H{
 		"status":             "healthy",

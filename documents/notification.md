@@ -1,221 +1,167 @@
-# WebSocket-SRV — Mô tả chi tiết Business Logic
+# Notification Service — Technical Documentation
 
-## 1. Tổng quan
+## 1. Overview
 
-**`websocket-srv`** là một **real-time notification hub** được viết bằng Go, phục vụ cho hệ thống **SMAP** (Social Media Analytics Platform) — một đồ án tốt nghiệp tại HCMUT. Service này đóng vai trò **cầu nối một chiều** giữa các backend microservices và trình duyệt web của user thông qua WebSocket.
+**`notification-srv`** is a **real-time notification hub** written in Go, serving the **SMAP** (Social Media Analytics Platform). It acts as a one-way bridge pushing updates from backend services to client dashboards via WebSocket, and critical alerts to Discord.
 
 ```mermaid
 graph LR
-    A["Crawler Service"] -->|PUBLISH| B["Redis Pub/Sub"]
-    C["Collector Service"] -->|PUBLISH| B
-    D["Analyzer Service"] -->|PUBLISH| B
-    B -->|SUBSCRIBE| E["websocket-srv"]
-    E -->|WebSocket push| F["Browser Client 1"]
-    E -->|WebSocket push| G["Browser Client 2"]
-    E -->|WebSocket push| H["Browser Client N"]
+    A["Crawler/Analyzer Services"] -->|PUBLISH| B["Redis Pub/Sub"]
+    B -->|SUBSCRIBE| C["notification-srv"]
+    C -->|WebSocket push| D["Browser Clients"]
+    C -->|Discord API| E["Discord Alert Channel"]
 ```
 
 > [!IMPORTANT]
-> Service này **chỉ push messages** tới client, **không xử lý** bất kỳ request nào từ client (read pump chỉ giữ connection alive và detect disconnect).
+> The service is **Push-Only**. It does not handle client requests beyond the initial WebSocket handshake/upgrade.
 
 ---
 
-## 2. Business Domain — SMAP là gì?
+## 2. Architecture Domains
 
-SMAP là nền tảng phân tích mạng xã hội, hỗ trợ:
+The service is divided into two primary domains:
 
-- **Crawl** dữ liệu từ TikTok, YouTube, Instagram theo keyword
-- **Phân tích** nội dung crawl được (sentiment, engagement, v.v.)
-- **Báo cáo** kết quả cho user qua dashboard real-time
+### 2.1 WebSocket Domain (`internal/websocket`)
 
-Trong bối cảnh đó, `websocket-srv` chịu trách nhiệm **thông báo real-time** về tiến trình crawl/phân tích cho user đang mở dashboard.
+Handles real-time updates to user dashboards.
+
+- **Role**: Connection management, Message Transformation, Routing.
+- **Input**: Redis Pub/Sub messages.
+- **Output**: JSON payloads pushed to connected WebSockets.
+
+### 2.2 Alert Domain (`internal/alert`)
+
+Handles critical system and business alerts.
+
+- **Role**: Dispatching formatted alerts to external channels.
+- **Input**: Specific message types (e.g., `CRISIS_ALERT`) or direct internal calls.
+- **Output**: Rich Embed messages to Discord Webhooks.
 
 ---
 
-## 3. Luồng Business Logic chính
+## 3. Business Logic Flow
 
-### 3.1 Xác thực (Authentication)
+### 3.1 Authentication
 
-```mermaid
-sequenceDiagram
-    participant Browser
-    participant Identity as Identity Service
-    participant WS as websocket-srv
+- **Mechanism**: JWT via **HttpOnly Cookie** (`smap_auth_token`) or Query Param (`?token=...`).
+- **Validation**:
+  - Token is verified against the Identity Service secret.
+  - `UserID` is extracted from the token claims.
+  - Connection is rejected if token is invalid or expired.
 
-    Browser->>Identity: POST /login (email, password)
-    Identity-->>Browser: Set-Cookie: smap_auth_token=JWT
-    Browser->>WS: GET /ws (cookie tự gửi kèm)
-    WS->>WS: Extract JWT từ HttpOnly cookie
-    WS->>WS: Validate JWT, extract userID
-    WS-->>Browser: WebSocket connection established
-```
-
-- Xác thực qua **HttpOnly Cookie** (`smap_auth_token`) — JWT không bao giờ lộ qua URL
-- Hỗ trợ **legacy query param** `?token=...` (deprecated)
-- JWT secret phải match với Identity Service
-
-### 3.2 Topic Subscription (Lọc theo Project/Job)
-
-Client kết nối WebSocket có thể truyền thêm query params:
-
-- `?projectId=abc` → chỉ nhận notification của project `abc`
-- `?jobId=xyz` → chỉ nhận notification của job `xyz`
-- Không truyền → nhận **tất cả** notification
-
-### 3.3 Message Flow — Từ Redis đến Browser
+### 3.2 Message Processing Pipeline
 
 ```mermaid
 sequenceDiagram
     participant Publisher as Backend Service
     participant Redis
     participant Sub as Redis Subscriber
-    participant Transform as Transform Layer
+    participant UC as WebSocket UseCase
     participant Hub as WebSocket Hub
-    participant Conn as WebSocket Connection
+    participant Alert as Alert UseCase
 
-    Publisher->>Redis: PUBLISH project:proj1:user1 {payload}
-    Redis->>Sub: Message on channel project:proj1:user1
-    Sub->>Sub: Parse channel → type=project, id=proj1, user=user1
-    Sub->>Transform: TransformMessage(channel, payload)
-    Transform->>Transform: Validate input → Transform → Validate output
-    Transform-->>Sub: ProjectNotificationMessage (JSON)
-    Sub->>Hub: SendToUserWithProject(user1, proj1, bytes)
-    Hub->>Hub: Find connections of user1 matching proj1
-    Hub->>Conn: Push to send channel
-    Conn->>Conn: writePump writes to WebSocket
+    Publisher->>Redis: PUBLISH channel {payload}
+    Redis->>Sub: Message received
+    Sub->>UC: ProcessMessage(channel, payload)
+    UC->>UC: Parse Channel & Detect Type
+    UC->>UC: Validate & Transform Payload
+    
+    rect rgb(255, 230, 230)
+    Note over UC, Alert: Critical Path
+    alt is CRISIS_ALERT
+        UC->>Alert: DispatchCrisisAlert(payload)
+        Alert-->>Discord: Send Webhook (Async)
+    end
+    end
+
+    UC-->>Hub: Route to User(s)
+    Hub->>Hub: Find active connections
+    Hub-->>Client: Push JSON Frame
 ```
 
 ---
 
-## 4. Ba loại Redis Channel
+## 4. Message Types & Formats
 
-| Pattern       | Mô tả                          | Ví dụ channel              | Xử lý                                                     |
-| ------------- | ------------------------------ | -------------------------- | --------------------------------------------------------- |
-| `user_noti:*` | Legacy notification chung      | `user_noti:user123`        | Gửi trực tiếp cho tất cả connection của user              |
-| `project:*`   | Thông báo tiến trình project   | `project:proj_abc:user123` | Transform → gửi cho connection có filter project matching |
-| `job:*`       | Thông báo tiến trình job/crawl | `job:job_xyz:user123`      | Transform → gửi cho connection có filter job matching     |
+The service supports 4 core message types for the new Analytics Platform.
 
----
+### 4.1 Data Onboarding (`DATA_ONBOARDING`)
 
-## 5. Hệ thống Message Types
+Updates on the status of connecting new data sources (e.g., linking a TikTok account).
 
-### 5.1 Input (từ Publisher → Redis)
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `project_id` | string | Project context |
+| `source_name` | string | "My TikTok Page" |
+| `status` | string | `PENDING`, `COMPLETED`, `FAILED` |
+| `progress` | int | 0-100 |
 
-**Project Messages:**
+### 4.2 Analytics Pipeline (`ANALYTICS_PIPELINE`)
 
-- [ProjectInputMessage](file:///Users/tailung/Workspaces/smap-hcmut/websocket-srv/internal/types/input.go#6-10) — format cũ: `{status, progress}`
-- [ProjectPhaseInputMessage](file:///Users/tailung/Workspaces/smap-hcmut/websocket-srv/internal/types/input.go#314-318) — format mới phase-based: `{type, payload: {project_id, status, crawl, analyze, overall_progress_percent}}`
+Real-time progress of data processing jobs (Crawling -> Cleaning -> Analyzing).
 
-**Job Messages:**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `project_id` | string | Project context |
+| `current_phase` | string | `CRAWLING`, `ANALYZING`, `INDEXING` |
+| `progress` | int | Overall progress (0-100) |
+| `estimated_time_ms` | int64 | Remaining time estimate |
 
-- [JobInputMessage](file:///Users/tailung/Workspaces/smap-hcmut/websocket-srv/internal/types/input.go#12-18) — `{platform, status, batch, progress}`
-  - `batch.content_list[]` chứa social media content items (id, text, author, metrics, media, permalink...)
+### 4.3 Crisis Alert (`CRISIS_ALERT`)
 
-### 5.2 Output (websocket-srv → Browser)
+Critical business alerts detected by the system (e.g., negative sentiment spike).
+*Note: These are sent to **both** WebSocket (dashboard) and Discord.*
 
-| Type                                                                                                                          | Struct                                                                            | Mô tả                           |
-| ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------- |
-| [ProjectNotificationMessage](file:///Users/tailung/Workspaces/smap-hcmut/websocket-srv/internal/types/output.go#6-10)         | `{status, progress}`                                                              | Trạng thái project tổng quan    |
-| [ProjectPhaseNotificationMessage](file:///Users/tailung/Workspaces/smap-hcmut/websocket-srv/internal/types/output.go#314-318) | `{type, payload: {project_id, status, crawl, analyze, overall_progress_percent}}` | Tiến trình chi tiết theo phase  |
-| [JobNotificationMessage](file:///Users/tailung/Workspaces/smap-hcmut/websocket-srv/internal/types/output.go#12-18)            | `{platform, status, batch, progress}`                                             | Kết quả crawl job theo platform |
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `severity` | string | `CRITICAL`, `WARNING`, `INFO` |
+| `metric` | string | e.g., "Sentiment Score" |
+| `current_value` | float | e.g., -0.85 |
+| `threshold` | float | e.g., -0.50 |
+| `affected_aspects`| array | ["Service Quality", "Pricing"] |
 
-### 5.3 Các trạng thái (Enums)
+### 4.4 Campaign Event (`CAMPAIGN_EVENT`)
 
-**Project:** `INITIALIZING` → `PROCESSING` → `DONE` / `FAILED` / `PAUSED`
+Lifecycle events for marketing campaigns.
 
-**Job:** `PROCESSING` → `COMPLETED` / `FAILED` / `PAUSED`
-
-**Platform:** `TIKTOK`, `YOUTUBE`, `INSTAGRAM`
-
----
-
-## 6. Transform Layer — Validation & Normalization
-
-Transform layer ([transformer.go](file:///Users/tailung/Workspaces/smap-hcmut/websocket-srv/internal/transform/transformer.go)) đảm bảo:
-
-1. **Input validation** — kiểm tra format và giá trị hợp lệ trước khi chuyển đổi
-2. **Data normalization** — clamp percentage (0-100), clamp ETA ≥ 0
-3. **Deduplication** — loại bỏ content items trùng ID trong batch
-4. **Output validation** — kiểm tra lại output sau transform
-5. **Metrics & Error tracking** — đo latency, đếm success/failure
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `event_type` | string | `CREATED`, `STARTED`, `PAUSED`, `FINISHED` |
+| `campaign_name` | string | "Summer Sale 2026" |
+| `message` | string | Human-readable description |
 
 ---
 
-## 7. Security & Rate Limiting
+## 5. Discord Integration (Alert Domain)
 
-### Authentication
+The `internal/alert` domain maps internal alerts to rich Discord Embeds.
 
-- **HttpOnly Cookie** + **JWT** validation
-- CORS environment-aware: production chỉ cho phép `smap.tantai.dev`
+### Visual Mapping
 
-### Authorization (Optional)
+- **CRITICAL** (Red): Immediate action required (e.g., Crisis detected).
+- **WARNING** (Orange): Threshold breaches or high failure rates.
+- **INFO** (Blue): Campaign updates.
+- **SUCCESS** (Green): Data onboarding completed.
+- **FAILURE** (Red): Data onboarding failed.
 
-- [authorizer.go](file:///Users/tailung/Workspaces/smap-hcmut/websocket-srv/internal/auth/authorizer.go): kiểm tra user có quyền access project/job không
-- Cached authorization với TTL tự động cleanup
+### Components
 
-### Rate Limiting (Optional)
-
-- [rate_limiter.go](file:///Users/tailung/Workspaces/smap-hcmut/websocket-srv/internal/auth/rate_limiter.go): giới hạn:
-  - Max 10 connections/user
-  - Max 3 connections/user/project
-  - Max 3 connections/user/job
-  - Max 20 new connections/user/minute
-
----
-
-## 8. Kiến trúc Connection Management
-
-```mermaid
-graph TD
-    subgraph "Hub (singleton)"
-        A["connections map: userID → []*Connection"]
-        B["register channel"]
-        C["unregister channel"]
-        D["broadcast channel"]
-    end
-
-    subgraph "Per Connection"
-        E["readPump goroutine"]
-        F["writePump goroutine"]
-        G["send channel (buffer 256)"]
-    end
-
-    B --> A
-    C --> A
-    D --> A
-    A --> G
-    G --> F
-```
-
-- Mỗi user có thể mở **nhiều connection** (nhiều tab browser)
-- Hub duy trì map `userID → []*Connection`
-- Mỗi Connection chạy 2 goroutine: [readPump](file:///Users/tailung/Workspaces/smap-hcmut/websocket-srv/internal/websocket/connection.go#100-140) (detect disconnect) + [writePump](file:///Users/tailung/Workspaces/smap-hcmut/websocket-srv/internal/websocket/connection.go#141-195) (push messages + ping/pong)
-- **Ping/Pong** keep-alive mỗi 30s, timeout 60s
-- Max 10,000 connections tổng
+- **Title**: Project/Campaign Name.
+- **Description**: Summary of the event.
+- **Fields**: Key-Value pairs (Metric/Value, Time Window, Action Required).
+- **Footer**: Service signature.
 
 ---
 
-## 9. Graceful Shutdown
+## 6. Connection Management
 
-Shutdown theo thứ tự:
-
-1. **Redis Subscriber** → ngừng nhận message
-2. **Hub** → đóng tất cả WebSocket connection
-3. **HTTP Server** → stop accepting requests
-
-Timeout 30 giây cho toàn bộ quá trình shutdown.
+- **User Mapping**: One UserID can have multiple connections (tabs/devices).
+- **Graceful Shutdown**:
+    1. Stop Redis Subscriber.
+    2. Close all WebSocket connections with `CloseServiceRestart` code.
+    3. Shutdown HTTP Server.
 
 ---
 
-## 10. Tóm tắt
-
-| Khía cạnh          | Chi tiết                                                 |
-| ------------------ | -------------------------------------------------------- |
-| **Ngôn ngữ**       | Go 1.25+                                                 |
-| **Framework**      | Gin (HTTP), gorilla/websocket                            |
-| **Message broker** | Redis Pub/Sub (pattern subscribe)                        |
-| **Auth**           | JWT via HttpOnly cookie                                  |
-| **Vai trò**        | Push-only notification hub                               |
-| **Domain**         | Social media analytics (crawl TikTok/YouTube/Instagram)  |
-| **Entities**       | Project, Job, Batch, Content, Author, Metrics            |
-| **Scalability**    | Stateless, horizontal scaling ready, max 10K connections |
+**Last Updated**: 17/02/2026
+**Version**: 2.0 (Refactored)

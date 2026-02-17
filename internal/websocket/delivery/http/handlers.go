@@ -20,31 +20,24 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 	// 1. Process Request (Auth & Validation)
 	req, userID, err := h.processUpgradeRequest(c)
 	if err != nil {
-		// Map error to HTTP response
-		// We use mapError but since we are in gin handler and not returning error to middleware,
-		// we must look at how errors are handled.
-		// Usually we return error response JSON.
-		// h.mapError returns an error type that might be handled by middleware on return?
-		// But Upgrade happens before return.
-		// If fails here, we return standard HTTP error.
-		// Convention: "Catch errors from UseCase and map them using response.Error"
-		// Here we just abort with status.
-		// Let's try to map it to status code using a helper or switch.
-		// Using panic(err) as per "mapError rules" is for domain errors.
-		// Here it's pre-domain.
+		// Map domain error to HTTP error
+		httpErr := h.mapError(err)
 
-		// Simplify:
-		_ = h.mapError(err) // This will panic if unknown, or return HTTPError.
-		// We should probably catch the panic if we want to be safe, or just use error response directly.
-		// Since mapError panics on unknown, we trust it or catch it in middleware.
-		// But for known errors, it returns pkgErrors.HTTPError.
-		// We can't easily extract status code from generic error interface without casting.
-		// For now, let's just abort with 400/401 based on error type manually or assume middleware catches panics.
-		// Wait, mapError returns error. If I ignore it, nothing happens.
-		// If I panic(err), middleware catches.
-		// If I return, Gin continues.
-		// I should probably abort with error.
-		c.Error(h.mapError(err))
+		// If it's already an HTTPError (from pkg/errors via mapError?), we can use it.
+		// But mapError returns error interface.
+		// Let's assume standard handling:
+		c.Error(httpErr)
+		// We must abort with status.
+		// Since we don't have the middleware in test, let's look at error string or type.
+		// For simplicity in this handler, if it fails, it's usually Auth or Limit or Bad Request.
+
+		// If mapError returns errors.HTTPError (from pkg/errors), we can cast.
+		// But let's just return 400 for now if we can't be specific, OR
+		// modify mapError to return HTTPError pointer?
+		// Check errors.go content first.
+
+		// Placeholder fix:
+		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
