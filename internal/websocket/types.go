@@ -1,98 +1,103 @@
 package websocket
 
-import (
-	"encoding/json"
-	"time"
-)
+import "time"
 
-// MessageType represents the type of message
+// --- Message Types ---
 type MessageType string
 
 const (
-	MessageTypeNotification     MessageType = "notification"
-	MessageTypeAlert            MessageType = "alert"
-	MessageTypeUpdate           MessageType = "update"
-	MessageTypePing             MessageType = "ping"
-	MessageTypePong             MessageType = "pong"
-	MessageTypeProjectProgress  MessageType = "project_progress"
-	MessageTypeProjectCompleted MessageType = "project_completed"
-	MessageTypeDryRunResult     MessageType = "dryrun_result"
-	MessageTypeJobProgress      MessageType = "job_progress"
-	MessageTypeJobCompleted     MessageType = "job_completed"
+	MessageTypeDataOnboarding    MessageType = "DATA_ONBOARDING"
+	MessageTypeAnalyticsPipeline MessageType = "ANALYTICS_PIPELINE"
+	MessageTypeCrisisAlert       MessageType = "CRISIS_ALERT"
+	MessageTypeCampaignEvent     MessageType = "CAMPAIGN_EVENT"
+	MessageTypeSystem            MessageType = "SYSTEM"
 )
 
-// ProgressPayload represents project progress notification from Project Service
-type ProgressPayload struct {
-	ProjectID       string  `json:"project_id"`
-	Status          string  `json:"status"`
-	Total           int     `json:"total"`
-	Done            int     `json:"done"`
-	Errors          int     `json:"errors"`
-	ProgressPercent float64 `json:"progress_percent"`
+// --- Channel Types ---
+type ChannelType string
+
+const (
+	ChannelTypeProject  ChannelType = "project"
+	ChannelTypeCampaign ChannelType = "campaign"
+	ChannelTypeAlert    ChannelType = "alert"
+	ChannelTypeSystem   ChannelType = "system"
+)
+
+// --- UseCase Inputs ---
+
+// ProcessMessageInput is the raw input from Redis
+type ProcessMessageInput struct {
+	Channel string
+	Payload []byte
 }
 
-// Validate validates the progress payload fields
-func (p *ProgressPayload) Validate() error {
-	if p.ProjectID == "" {
-		return ErrInvalidMessage
-	}
-	if p.Total < 0 || p.Done < 0 || p.Errors < 0 {
-		return ErrInvalidMessage
-	}
-	if p.ProgressPercent < 0 || p.ProgressPercent > 100 {
-		return ErrInvalidMessage
-	}
-	return nil
+// ConnectionInput represents a new connection attempt
+type ConnectionInput struct {
+	UserID    string
+	ProjectID string      // Optional filter
+	Conn      interface{} // *websocket.Conn (handled as interface{} to avoid direct dependency in public type if preferred, or wrapped)
 }
 
-// Message represents a message sent over WebSocket
-type Message struct {
-	Type      MessageType     `json:"type"`
-	Payload   json.RawMessage `json:"payload"`
-	Timestamp time.Time       `json:"timestamp"`
+// --- UseCase Outputs ---
+
+type HubStats struct {
+	ActiveConnections int
+	TotalUniqueUsers  int
 }
 
-// BroadcastMessage represents a message to be broadcast to specific users
-type BroadcastMessage struct {
-	UserID  string
-	Message *Message
+// NotificationOutput is the final payload sent to the client
+type NotificationOutput struct {
+	Type      MessageType `json:"type"`
+	Timestamp time.Time   `json:"timestamp"`
+	Payload   interface{} `json:"payload"`
 }
 
-// NewMessage creates a new message with the given type and payload
-func NewMessage(msgType MessageType, payload interface{}) (*Message, error) {
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
+// --- Payload Types (for Transformation) ---
 
-	return &Message{
-		Type:      msgType,
-		Payload:   payloadBytes,
-		Timestamp: time.Now(),
-	}, nil
+type DataOnboardingPayload struct {
+	ProjectID   string `json:"project_id"`
+	SourceID    string `json:"source_id"`
+	SourceName  string `json:"source_name"`
+	SourceType  string `json:"source_type"`
+	Status      string `json:"status"`
+	Progress    int    `json:"progress"`
+	RecordCount int    `json:"record_count"`
+	ErrorCount  int    `json:"error_count"`
+	Message     string `json:"message"`
 }
 
-// ToJSON converts the message to JSON bytes
-func (m *Message) ToJSON() ([]byte, error) {
-	return json.Marshal(m)
+type AnalyticsPipelinePayload struct {
+	ProjectID       string `json:"project_id"`
+	SourceID        string `json:"source_id"`
+	TotalRecords    int    `json:"total_records"`
+	ProcessedCount  int    `json:"processed_count"`
+	SuccessCount    int    `json:"success_count"`
+	FailedCount     int    `json:"failed_count"`
+	Progress        int    `json:"progress"`
+	CurrentPhase    string `json:"current_phase"`
+	EstimatedTimeMs int64  `json:"estimated_time_ms"`
 }
 
-// FromJSON creates a message from JSON bytes
-func FromJSON(data []byte) (*Message, error) {
-	var msg Message
-	if err := json.Unmarshal(data, &msg); err != nil {
-		return nil, err
-	}
-	return &msg, nil
+type CrisisAlertPayload struct {
+	ProjectID       string   `json:"project_id"`
+	ProjectName     string   `json:"project_name"`
+	Severity        string   `json:"severity"`
+	AlertType       string   `json:"alert_type"`
+	Metric          string   `json:"metric"`
+	CurrentValue    float64  `json:"current_value"`
+	Threshold       float64  `json:"threshold"`
+	AffectedAspects []string `json:"affected_aspects"`
+	SampleMentions  []string `json:"sample_mentions"`
+	TimeWindow      string   `json:"time_window"`
+	ActionRequired  string   `json:"action_required"`
 }
 
-// Validate validates the message structure
-func (m *Message) Validate() error {
-	if m.Type == "" {
-		return ErrInvalidMessage
-	}
-	if m.Payload == nil {
-		return ErrInvalidMessage
-	}
-	return nil
+type CampaignEventPayload struct {
+	CampaignID   string `json:"campaign_id"`
+	CampaignName string `json:"campaign_name"`
+	EventType    string `json:"event_type"`
+	ResourceID   string `json:"resource_id"`
+	ResourceName string `json:"resource_name"`
+	ResourceURL  string `json:"resource_url"`
+	Message      string `json:"message"`
 }

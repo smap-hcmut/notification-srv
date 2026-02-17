@@ -4,11 +4,11 @@ import (
 	"errors"
 
 	"notification-srv/config"
-	wsHTTP "notification-srv/internal/websocket/delivery/http"
-	wsUC "notification-srv/internal/websocket/usecase"
+	"notification-srv/internal/websocket"
+	"notification-srv/internal/websocket/delivery/redis"
 	"notification-srv/pkg/discord"
 	"notification-srv/pkg/log"
-	"notification-srv/pkg/redis"
+	pkgRedis "notification-srv/pkg/redis"
 	"notification-srv/pkg/scope"
 
 	"github.com/gin-gonic/gin"
@@ -24,19 +24,17 @@ type HTTPServer struct {
 	port        int
 	environment string
 
-	// WebSocket core
-	hub      *wsUC.Hub
-	wsConfig config.WebSocketConfig
-
-	// WebSocket HTTP handler
-	wsHandler *wsHTTP.Handler
+	// WebSocket core (New Domain)
+	wsUC         websocket.UseCase
+	wsSubscriber redis.Subscriber
+	wsConfig     config.WebSocketConfig
 
 	// Auth & security
 	jwtMgr    scope.Manager
 	cookieCfg config.CookieConfig
 
 	// External services
-	redis   redis.IRedis
+	redis   pkgRedis.IRedis
 	discord discord.IDiscord
 }
 
@@ -55,7 +53,7 @@ type Config struct {
 	Cookie     config.CookieConfig
 
 	// External services
-	Redis   redis.IRedis
+	Redis   pkgRedis.IRedis
 	Discord discord.IDiscord
 }
 
@@ -64,9 +62,6 @@ type Config struct {
 func New(logger log.Logger, cfg Config) (*HTTPServer, error) {
 	gin.SetMode(cfg.Environment) // cfg.Environment should map to gin mode by convention
 
-	// Initialize WebSocket Hub (lifecycle will be started in Run()).
-	hub := wsUC.NewHub(logger, cfg.WSConfig.MaxConnections)
-
 	srv := &HTTPServer{
 		// Server configuration
 		gin:         gin.Default(),
@@ -74,8 +69,7 @@ func New(logger log.Logger, cfg Config) (*HTTPServer, error) {
 		port:        cfg.Port,
 		environment: cfg.Environment,
 
-		// WebSocket core
-		hub:      hub,
+		// WebSocket config
 		wsConfig: cfg.WSConfig,
 
 		// Auth & security
@@ -111,4 +105,3 @@ func (s *HTTPServer) validate() error {
 
 	return nil
 }
-

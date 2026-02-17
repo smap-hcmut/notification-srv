@@ -3,21 +3,22 @@ package websocket
 import "errors"
 
 var (
-	// ErrInvalidToken is returned when the JWT token is invalid
-	ErrInvalidToken = errors.New("invalid or expired token")
-
-	// ErrMissingToken is returned when the JWT token is missing
-	ErrMissingToken = errors.New("missing token")
-
-	// ErrInvalidMessage is returned when the message format is invalid
-	ErrInvalidMessage = errors.New("invalid message format")
-
-	// ErrConnectionClosed is returned when trying to write to a closed connection
-	ErrConnectionClosed = errors.New("connection closed")
-
-	// ErrMaxConnectionsReached is returned when max connections limit is reached
+	ErrInvalidToken          = errors.New("invalid or expired JWT token")
+	ErrMissingToken          = errors.New("missing JWT token")
+	ErrConnectionClosed      = errors.New("connection closed")
 	ErrMaxConnectionsReached = errors.New("maximum connections reached")
+	ErrUserNotFound          = errors.New("user not found in connection registry")
+)
 
-	// ErrUserNotFound is returned when user is not found in registry
-	ErrUserNotFound = errors.New("user not found in registry")
+// Message errors
+var (
+	ErrInvalidMessage     = errors.New("invalid message format")
+	ErrUnknownMessageType = errors.New("unknown message type")
+	ErrInvalidChannel     = errors.New("invalid Redis channel format")
+)
+
+// Transform errors
+var (
+	ErrTransformFailed  = errors.New("message transformation failed")
+	ErrValidationFailed = errors.New("message validation failed")
 )

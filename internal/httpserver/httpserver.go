@@ -10,20 +10,27 @@ import (
 
 // Run starts the HTTP server and all background services, then blocks until shutdown signal.
 // This method manages the complete lifecycle of the WebSocket service:
-//   1. Start Hub background service (message routing)
-//   2. Map HTTP handlers and routes
-//   3. Start HTTP server
-//   4. Wait for shutdown signal
+//  1. Map HTTP handlers and routes (Initialize wiring)
+//  2. Start WebSocket UseCase (Hub)
+//  3. Start HTTP server
+//  4. Wait for shutdown signal
 func (srv *HTTPServer) Run() error {
 	ctx := context.Background()
 
-	// 1. Start Hub background service for WebSocket message routing
-	go srv.hub.Run()
-	srv.logger.Info(ctx, "WebSocket Hub background service started")
-
-	// 2. Map handlers (initializes Redis subscriber, WebSocket routes, etc.)
+	// 1. Map handlers (initializes WebSocket UseCase, Subscriber, Routes)
 	if err := srv.mapHandlers(); err != nil {
 		srv.logger.Fatalf(ctx, "Failed to map handlers: %v", err)
+		return err
+	}
+
+	// 2. Start WebSocket background services
+	// Start UseCase (Hub)
+	go srv.wsUC.Run()
+	srv.logger.Info(ctx, "WebSocket UseCase background service started")
+
+	// Start Redis Subscriber
+	if err := srv.wsSubscriber.Start(); err != nil {
+		srv.logger.Fatalf(ctx, "Failed to start Redis subscriber: %v", err)
 		return err
 	}
 
@@ -41,6 +48,14 @@ func (srv *HTTPServer) Run() error {
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	srv.logger.Info(ctx, <-ch)
 	srv.logger.Info(ctx, "Stopping WebSocket service...")
+
+	// Graceful shutdown
+	if err := srv.wsUC.Shutdown(ctx); err != nil {
+		srv.logger.Errorf(ctx, "WebSocket UseCase shutdown error: %v", err)
+	}
+	if err := srv.wsSubscriber.Shutdown(ctx); err != nil {
+		srv.logger.Errorf(ctx, "Redis Subscriber shutdown error: %v", err)
+	}
 
 	return nil
 }
