@@ -1,0 +1,42 @@
+# =============================================================================
+# .dockerignore - Exclude unnecessary files from Docker build context
+# Reduces context size → Faster builds
+# =============================================================================
+
+# Version control
+.git
+.gitignore
+
+# Documentation
+*.md
+documents/
+LICENSE
+
+# IDE & editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Kubernetes manifests (not needed in image)
+manifests/
+
+# Build scripts (not needed in image)
+*.sh
+
+# Config examples & templates
+config/notification-config.example.yaml
+config/notification-config.yaml
+manifests/secret.yaml.template
+
+# Test files
+*_test.go
+**/*_test.go
+
+# Makefile
+Makefile

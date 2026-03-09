@@ -1,23 +1,23 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: notification-srv-config
+  name: notification-config
   namespace: smap
   labels:
-    app: notification-srv
+    app: notification-api
 data:
   # Environment Configuration
-  ENV: "production" # Values: production | staging | dev
+  ENVIRONMENT_NAME: "development"
 
   # Server Configuration
-  WS_PORT: "8081"
-  WS_MODE: "release"
+  APP_PORT: "8081"
+  API_MODE: "release"
 
   # Logger Configuration
-  LOGGER_LEVEL: "info"
-  LOGGER_MODE: "production"
-  LOGGER_ENCODING: "json"
-  LOGGER_COLOR_ENABLED: "false"
+  LOGGER_LEVEL: "debug"
+  LOGGER_MODE: "debug"
+  LOGGER_ENCODING: "console"
+  LOGGER_COLOR_ENABLED: "true"
 
   # Redis Configuration (non-sensitive)
   REDIS_DB: "0"
