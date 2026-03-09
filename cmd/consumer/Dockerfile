@@ -22,9 +22,6 @@ COPY vendor/ vendor/
 COPY . .
 
 # Build binary with vendor mode (no network, fully reproducible)
-# CGO_ENABLED=0: Static binary for distroless
-# -ldflags="-s -w": Strip debug info (~30-40% smaller)
-# -mod=vendor: Use vendored dependencies (no download needed)
 RUN --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 \
     GOOS=${TARGETOS} \
@@ -33,7 +30,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     -mod=vendor \
     -ldflags="-s -w" \
     -trimpath \
-    -o api-server ./cmd/api
+    -o consumer ./cmd/consumer
 
 # =============================================================================
 # STAGE 2: RUNTIME (Distroless Static — ~2MB, no shell, minimal attack surface)
@@ -45,10 +42,8 @@ WORKDIR /app
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 ENV TZ=Asia/Ho_Chi_Minh
 
-COPY --from=builder --chown=nonroot:nonroot /app/api-server .
+COPY --from=builder --chown=nonroot:nonroot /app/consumer .
 
 USER nonroot:nonroot
 
-EXPOSE 8081
-
-ENTRYPOINT ["./api-server"]
+ENTRYPOINT ["./consumer"]

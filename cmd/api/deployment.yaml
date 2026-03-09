@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: notification-srv
+  name: notification-api
   namespace: smap
   labels:
-    app: notification-srv
+    app: notification-api
     version: v1
 spec:
   replicas: 1
-  revisionHistoryLimit: 10
+  revisionHistoryLimit: 5
   selector:
     matchLabels:
-      app: notification-srv
+      app: notification-api
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -20,15 +20,15 @@ spec:
   template:
     metadata:
       labels:
-        app: notification-srv
+        app: notification-api
         version: v1
     spec:
       imagePullSecrets:
-        - name: harbor-secret
+        - name: harbor-registry
       containers:
-        - name: notification-srv
-          image: registry.tantai.dev/smap/notification-srv:251209-053303
-          imagePullPolicy: Always
+        - name: notification-api
+          image: registry.tantai.dev/smap/notification-api:260310-010255
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8081
               name: ws
@@ -39,15 +39,15 @@ spec:
               cpu: "100m"
             limits:
               memory: "512Mi"
-              cpu: "1000m"
+              cpu: "500m"
           envFrom:
             - configMapRef:
-                name: notification-srv-config
+                name: notification-config
             - secretRef:
-                name: notification-srv-secrets
+                name: notification-secrets
           env:
             - name: CONTAINER_NAME
-              value: "notification-srv"
+              value: "notification-api"
             - name: KUBERNETES_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -64,31 +64,24 @@ spec:
             httpGet:
               path: /health
               port: 8081
-              scheme: HTTP
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
-            successThreshold: 1
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
               port: 8081
-              scheme: HTTP
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3
-            successThreshold: 1
             failureThreshold: 3
           startupProbe:
             httpGet:
               path: /health
               port: 8081
-              scheme: HTTP
-            initialDelaySeconds: 0
             periodSeconds: 5
             timeoutSeconds: 3
-            successThreshold: 1
             failureThreshold: 12
       terminationGracePeriodSeconds: 30
 
@@ -96,20 +89,16 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: notification-srv
+  name: notification-api
   namespace: smap
   labels:
-    app: notification-srv
+    app: notification-api
 spec:
   selector:
-    app: notification-srv
+    app: notification-api
   ports:
     - port: 80
       targetPort: 8081
       protocol: TCP
       name: ws
   type: ClusterIP
-  sessionAffinity: ClientIP
-  sessionAffinityConfig:
-    clientIP:
-      timeoutSeconds: 10800
