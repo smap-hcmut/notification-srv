@@ -12,6 +12,8 @@ import (
 	"notification-srv/pkg/scope"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"time"
 )
 
 // HTTPServer represents the HTTP server with all dependencies.
@@ -67,7 +69,7 @@ func New(logger log.Logger, cfg Config) (*HTTPServer, error) {
 
 	srv := &HTTPServer{
 		// Server configuration
-		gin:         gin.Default(),
+		gin:         gin.New(),
 		logger:      logger,
 		port:        cfg.Port,
 		environment: cfg.Environment,
@@ -84,11 +86,46 @@ func New(logger log.Logger, cfg Config) (*HTTPServer, error) {
 		discord: cfg.Discord,
 	}
 
+	// Add middlewares
+	srv.gin.Use(srv.zapLoggerMiddleware())
+	srv.gin.Use(gin.Recovery())
+
 	if err := srv.validate(); err != nil {
 		return nil, err
 	}
 
 	return srv, nil
+}
+
+func (srv *HTTPServer) zapLoggerMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		query := c.Request.URL.RawQuery
+
+		c.Next()
+
+		latency := time.Since(start)
+		status := c.Writer.Status()
+
+		if path == "/health" || path == "/ready" || path == "/live" {
+			return
+		}
+
+		if srv.environment == "production" {
+			srv.logger.Info(c.Request.Context(), "HTTP Request",
+				zap.Int("status", status),
+				zap.String("method", c.Request.Method),
+				zap.String("path", path),
+				zap.String("query", query),
+				zap.String("ip", c.ClientIP()),
+				zap.Duration("latency", latency),
+				zap.String("user-agent", c.Request.UserAgent()),
+			)
+		} else {
+			srv.logger.Infof(c.Request.Context(), "%s %s %d %s %s", c.Request.Method, path, status, latency, c.ClientIP())
+		}
+	}
 }
 
 // validate ensures all required dependencies are provided.
