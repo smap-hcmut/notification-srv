@@ -27,7 +27,7 @@ spec:
         - name: harbor-registry
       containers:
         - name: notification-consumer
-          image: registry.tantai.dev/smap/notification-consumer:260310-143131
+          image: registry.tantai.dev/smap/notification-consumer:260310-221808
           imagePullPolicy: IfNotPresent
           resources:
             requests:
@@ -35,7 +35,7 @@ spec:
               cpu: "100m"
             limits:
               memory: "512Mi"
-              cpu: "500m"
+              cpu: "1000m"
           envFrom:
             - configMapRef:
                 name: notification-config
