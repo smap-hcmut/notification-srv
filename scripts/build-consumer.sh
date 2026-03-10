@@ -22,6 +22,7 @@ DOCKERFILE="cmd/consumer/Dockerfile"
 PLATFORM="${PLATFORM:-linux/amd64}"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 success() { echo -e "${GREEN}[OK]${NC} $1"; }
 warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
 err()     { echo -e "${RED}[ERROR]${NC} $1"; }

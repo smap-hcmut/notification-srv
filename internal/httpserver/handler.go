@@ -64,6 +64,7 @@ func (srv *HTTPServer) mapHandlers() error {
 
 // registerMiddlewares registers global middlewares
 func (srv *HTTPServer) registerMiddlewares(mw middleware.Middleware) {
+	srv.gin.Use(middleware.Tracing())
 	srv.gin.Use(middleware.Recovery(srv.logger, srv.discord))
 
 	// CORS configuration based on environment

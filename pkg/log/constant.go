@@ -5,6 +5,9 @@ const (
 	ModeDevelopment = "development"
 	EncodingConsole = "console"
 	EncodingJSON    = "json"
+
+	// TraceIDKey is the key for trace id in context
+	TraceIDKey = "trace_id"
 )
 
 const (
