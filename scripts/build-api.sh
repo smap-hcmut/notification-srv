@@ -13,9 +13,9 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # ── Configuration ────────────────────────────────────────────────────────────
-REGISTRY="${ZOT_REGISTRY:-172.16.21.10:5000}"
-ZOT_USER="${ZOT_USERNAME:?ZOT_USERNAME is not set. Export it in ~/.zshrc}"
-ZOT_PASS="${ZOT_PASSWORD:?ZOT_PASSWORD is not set. Export it in ~/.zshrc}"
+REGISTRY="${HARBOR_REGISTRY:-registry.tantai.dev}"
+HARBOR_USER="${HARBOR_USERNAME:?HARBOR_USERNAME is not set}"
+HARBOR_PASS="${HARBOR_PASSWORD:?HARBOR_PASSWORD is not set. Export it in ~/.zshrc}"
 PROJECT="smap"
 SERVICE="notification-api"
 DOCKERFILE="cmd/api/Dockerfile"
@@ -37,7 +37,7 @@ image_name() {
 # ── Login ────────────────────────────────────────────────────────────────────
 login() {
     info "Logging into Zot registry: $REGISTRY"
-    echo "$ZOT_PASS" | docker login "$REGISTRY" -u "$ZOT_USER" --password-stdin
+    echo "$HARBOR_PASS" | docker login "$REGISTRY" -u "$HARBOR_USER" --password-stdin
     success "Logged in to $REGISTRY"
 }
 
