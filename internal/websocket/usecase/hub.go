@@ -3,7 +3,7 @@ package usecase
 import (
 	"sync"
 
-	"notification-srv/pkg/log"
+	"github.com/smap-hcmut/shared-libs/go/log"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to them.

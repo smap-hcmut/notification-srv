@@ -4,19 +4,19 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"notification-srv/internal/alert"
+	"notification-srv/internal/middleware"
+	wsConfig "notification-srv/internal/websocket/delivery/http" // Alias to avoid conflict
+	"notification-srv/internal/websocket/usecase"
 	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/smap-hcmut/shared-libs/go/log"
+	"github.com/smap-hcmut/shared-libs/go/scope"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-
-	"notification-srv/internal/alert"
-	"notification-srv/internal/middleware"
-	wsConfig "notification-srv/internal/websocket/delivery/http" // Alias to avoid conflict
-	"notification-srv/internal/websocket/usecase"
-	"notification-srv/pkg/scope"
 )
 
 // --- Mocks ---
@@ -25,20 +25,24 @@ type MockLogger struct {
 	mock.Mock
 }
 
-func (m *MockLogger) Info(ctx context.Context, args ...interface{})                     {}
-func (m *MockLogger) Infof(ctx context.Context, template string, args ...interface{})   {}
-func (m *MockLogger) Warn(ctx context.Context, args ...interface{})                     {}
-func (m *MockLogger) Warnf(ctx context.Context, template string, args ...interface{})   {}
-func (m *MockLogger) Error(ctx context.Context, args ...interface{})                    {}
-func (m *MockLogger) Errorf(ctx context.Context, template string, args ...interface{})  {}
-func (m *MockLogger) Fatal(ctx context.Context, args ...interface{})                    {}
-func (m *MockLogger) Fatalf(ctx context.Context, template string, args ...interface{})  {}
-func (m *MockLogger) Debug(ctx context.Context, args ...interface{})                    {}
-func (m *MockLogger) Debugf(ctx context.Context, template string, args ...interface{})  {}
-func (m *MockLogger) DPanic(ctx context.Context, args ...interface{})                   {}
-func (m *MockLogger) DPanicf(ctx context.Context, template string, args ...interface{}) {}
-func (m *MockLogger) Panic(ctx context.Context, args ...interface{})                    {}
-func (m *MockLogger) Panicf(ctx context.Context, template string, args ...interface{})  {}
+func (m *MockLogger) Info(ctx context.Context, args ...any)                     {}
+func (m *MockLogger) Infof(ctx context.Context, template string, args ...any)   {}
+func (m *MockLogger) Warn(ctx context.Context, args ...any)                     {}
+func (m *MockLogger) Warnf(ctx context.Context, template string, args ...any)   {}
+func (m *MockLogger) Error(ctx context.Context, args ...any)                    {}
+func (m *MockLogger) Errorf(ctx context.Context, template string, args ...any)  {}
+func (m *MockLogger) Fatal(ctx context.Context, args ...any)                    {}
+func (m *MockLogger) Fatalf(ctx context.Context, template string, args ...any)  {}
+func (m *MockLogger) Debug(ctx context.Context, args ...any)                    {}
+func (m *MockLogger) Debugf(ctx context.Context, template string, args ...any)  {}
+func (m *MockLogger) DPanic(ctx context.Context, args ...any)                   {}
+func (m *MockLogger) DPanicf(ctx context.Context, template string, args ...any) {}
+func (m *MockLogger) Panic(ctx context.Context, args ...any)                    {}
+func (m *MockLogger) Panicf(ctx context.Context, template string, args ...any)  {}
+
+func (m *MockLogger) WithTrace(ctx context.Context) log.Logger {
+	return m
+}
 
 type MockAlertUC struct {
 	mock.Mock
@@ -68,9 +72,29 @@ func (m *MockScopeManager) Verify(token string) (scope.Payload, error) {
 	return args.Get(0).(scope.Payload), args.Error(1)
 }
 
+func (m *MockScopeManager) VerifyWithTrace(ctx context.Context, token string) (scope.Payload, error) {
+	args := m.Called(ctx, token)
+	return args.Get(0).(scope.Payload), args.Error(1)
+}
+
 func (m *MockScopeManager) CreateToken(payload scope.Payload) (string, error) {
 	args := m.Called(payload)
 	return args.String(0), args.Error(1)
+}
+
+func (m *MockScopeManager) CreateTokenWithTrace(ctx context.Context, payload scope.Payload) (string, error) {
+	args := m.Called(ctx, payload)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockScopeManager) VerifyScope(scopeHeader string) (scope.Scope, error) {
+	args := m.Called(scopeHeader)
+	return args.Get(0).(scope.Scope), args.Error(1)
+}
+
+func (m *MockScopeManager) VerifyScopeWithTrace(ctx context.Context, scopeHeader string) (scope.Scope, error) {
+	args := m.Called(ctx, scopeHeader)
+	return args.Get(0).(scope.Scope), args.Error(1)
 }
 
 // --- Tests ---

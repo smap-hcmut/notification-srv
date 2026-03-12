@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"notification-srv/pkg/discord"
+	"github.com/smap-hcmut/shared-libs/go/discord"
 )
 
 // mapSeverityToColor maps alert severity to Discord embed color.

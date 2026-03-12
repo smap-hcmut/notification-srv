@@ -3,9 +3,8 @@ package usecase
 import (
 	"time"
 
-	"notification-srv/pkg/log"
-
 	"github.com/gorilla/websocket"
+	"github.com/smap-hcmut/shared-libs/go/log"
 )
 
 const (

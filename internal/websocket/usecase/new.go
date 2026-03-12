@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/gorilla/websocket"
-
 	"notification-srv/internal/alert"
 	ws "notification-srv/internal/websocket"
-	"notification-srv/pkg/log"
+
+	"github.com/gorilla/websocket"
+	"github.com/smap-hcmut/shared-libs/go/log"
 )
 
 // implUseCase implements websocket.UseCase.

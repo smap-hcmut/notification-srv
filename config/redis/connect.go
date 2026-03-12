@@ -4,15 +4,16 @@ import (
 	"context"
 	"fmt"
 	"notification-srv/config"
-	pkgRedis "notification-srv/pkg/redis"
+
+	"github.com/smap-hcmut/shared-libs/go/redis"
 )
 
-var client pkgRedis.IRedis
+var client redis.IRedis
 
 // Connect initializes and returns a Redis client
-func Connect(ctx context.Context, cfg config.RedisConfig) (pkgRedis.IRedis, error) {
+func Connect(ctx context.Context, cfg config.RedisConfig) (redis.IRedis, error) {
 	var err error
-	client, err = pkgRedis.New(pkgRedis.RedisConfig{
+	client, err = redis.New(redis.RedisConfig{
 		Host:     cfg.Host,
 		Port:     cfg.Port,
 		Password: cfg.Password,

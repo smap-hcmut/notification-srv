@@ -3,11 +3,11 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"notification-srv/internal/alert"
 	"strings"
 	"time"
 
-	"notification-srv/internal/alert"
-	"notification-srv/pkg/discord"
+	"github.com/smap-hcmut/shared-libs/go/discord"
 )
 
 func (uc *implUseCase) DispatchCrisisAlert(ctx context.Context, input alert.CrisisAlertInput) error {

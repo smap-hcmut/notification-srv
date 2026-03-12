@@ -2,8 +2,9 @@ package usecase
 
 import (
 	"notification-srv/internal/alert"
-	"notification-srv/pkg/discord"
-	"notification-srv/pkg/log"
+
+	"github.com/smap-hcmut/shared-libs/go/discord"
+	"github.com/smap-hcmut/shared-libs/go/log"
 )
 
 type implUseCase struct {

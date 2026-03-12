@@ -2,10 +2,10 @@ package httpserver
 
 import (
 	"notification-srv/internal/websocket"
-	"notification-srv/pkg/errors"
-	"notification-srv/pkg/response"
 
 	"github.com/gin-gonic/gin"
+	"github.com/smap-hcmut/shared-libs/go/errors"
+	"github.com/smap-hcmut/shared-libs/go/response"
 )
 
 // healthCheck handles health check requests
@@ -21,7 +21,7 @@ func (srv *HTTPServer) healthCheck(c *gin.Context) {
 
 	// Check Redis connection
 	if err := srv.redis.Ping(ctx); err != nil {
-		response.HttpError(c, errors.NewHTTPError(503, "Redis connection failed"))
+		response.Error(c, errors.NewInternalServerError("Redis connection failed"))
 		return
 	}
 
@@ -58,7 +58,7 @@ func (srv *HTTPServer) readyCheck(c *gin.Context) {
 
 	// Check if Redis is ready
 	if err := srv.redis.Ping(ctx); err != nil {
-		response.HttpError(c, errors.NewHTTPError(503, "Redis connection not available"))
+		response.Error(c, errors.NewInternalServerError("Redis connection not available"))
 		return
 	}
 

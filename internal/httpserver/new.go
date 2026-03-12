@@ -6,14 +6,14 @@ import (
 	"notification-srv/config"
 	"notification-srv/internal/websocket"
 	"notification-srv/internal/websocket/delivery/redis"
-	"notification-srv/pkg/discord"
-	"notification-srv/pkg/log"
-	pkgRedis "notification-srv/pkg/redis"
-	"notification-srv/pkg/scope"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/smap-hcmut/shared-libs/go/discord"
+	"github.com/smap-hcmut/shared-libs/go/log"
+	pkgRedis "github.com/smap-hcmut/shared-libs/go/redis"
+	"github.com/smap-hcmut/shared-libs/go/scope"
 	"go.uber.org/zap"
-	"time"
 )
 
 // HTTPServer represents the HTTP server with all dependencies.

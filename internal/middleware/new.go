@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"notification-srv/config"
-	"notification-srv/pkg/log"
-	"notification-srv/pkg/scope"
+
+	"github.com/smap-hcmut/shared-libs/go/log"
+	"github.com/smap-hcmut/shared-libs/go/scope"
 )
 
 type Middleware struct {

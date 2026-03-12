@@ -5,8 +5,9 @@ import (
 	"sync"
 
 	"notification-srv/internal/websocket"
-	"notification-srv/pkg/log"
-	pkgRedis "notification-srv/pkg/redis"
+
+	"github.com/smap-hcmut/shared-libs/go/log"
+	pkgRedis "github.com/smap-hcmut/shared-libs/go/redis"
 
 	"github.com/redis/go-redis/v9"
 )

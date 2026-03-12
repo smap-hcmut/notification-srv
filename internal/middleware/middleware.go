@@ -1,16 +1,15 @@
 package middleware
 
 import (
-	"notification-srv/pkg/response"
-	"notification-srv/pkg/scope"
-
 	"github.com/gin-gonic/gin"
+	"github.com/smap-hcmut/shared-libs/go/response"
+	"github.com/smap-hcmut/shared-libs/go/scope"
 )
 
 // Auth returns a middleware that authenticates requests using JWT.
 // Priority:
-//   1. Authorization header (Bearer token) - for dev/testing/mobile apps
-//   2. HttpOnly cookie - for browser clients
+//  1. Authorization header (Bearer token) - for dev/testing/mobile apps
+//  2. HttpOnly cookie - for browser clients
 func (m Middleware) Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tokenString string

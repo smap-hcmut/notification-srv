@@ -3,16 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"notification-srv/config"
+	"notification-srv/internal/httpserver"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"notification-srv/config"
-	"notification-srv/config/redis"
-	"notification-srv/internal/httpserver"
-	"notification-srv/pkg/discord"
-	"notification-srv/pkg/log"
-	"notification-srv/pkg/scope"
+	"github.com/smap-hcmut/shared-libs/go/discord"
+	"github.com/smap-hcmut/shared-libs/go/log"
+	"github.com/smap-hcmut/shared-libs/go/redis"
+	"github.com/smap-hcmut/shared-libs/go/scope"
 )
 
 // @title       SMAP Notification Service API
@@ -39,7 +39,7 @@ func main() {
 	}
 
 	// Initialize logger
-	logger := log.Init(log.ZapConfig{
+	logger := log.NewZapLogger(log.ZapConfig{
 		Level:        cfg.Logger.Level,
 		Mode:         cfg.Logger.Mode,
 		Encoding:     cfg.Logger.Encoding,
@@ -51,12 +51,17 @@ func main() {
 	defer stop()
 
 	// Redis - Pub/Sub for real-time notifications
-	redisClient, err := redis.Connect(ctx, cfg.Redis)
+	redisClient, err := redis.New(redis.RedisConfig{
+		Host:     cfg.Redis.Host,
+		Port:     cfg.Redis.Port,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
 	if err != nil {
 		logger.Errorf(ctx, "Failed to connect to Redis: %v", err)
 		return
 	}
-	defer redis.Disconnect()
+	defer redisClient.Close()
 	logger.Infof(ctx, "Redis client initialized")
 
 	// Scope/JWT Manager (verify tokens from HttpOnly cookie)

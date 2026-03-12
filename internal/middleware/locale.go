@@ -1,9 +1,8 @@
 package middleware
 
 import (
-	"notification-srv/pkg/locale"
-
 	"github.com/gin-gonic/gin"
+	"github.com/smap-hcmut/shared-libs/go/locale"
 )
 
 func (m Middleware) Locale() gin.HandlerFunc {

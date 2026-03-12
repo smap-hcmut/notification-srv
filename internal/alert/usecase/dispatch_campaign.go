@@ -3,10 +3,10 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"notification-srv/internal/alert"
 	"time"
 
-	"notification-srv/internal/alert"
-	"notification-srv/pkg/discord"
+	"github.com/smap-hcmut/shared-libs/go/discord"
 )
 
 func (uc *implUseCase) DispatchCampaignEvent(ctx context.Context, input alert.CampaignEventInput) error {

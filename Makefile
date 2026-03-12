@@ -6,9 +6,17 @@ help: ## Show this help message
 	@echo 'Available targets:'
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-run: ## Run the WebSocket server locally
-	@echo "Starting WebSocket server..."
-	go run ./cmd/api
+run-api:
+	@echo "Generating swagger"
+	@swag init -g cmd/api/main.go --parseVendor
+	@sed -i '' '/LeftDelim:/d' docs/docs.go
+	@sed -i '' '/RightDelim:/d' docs/docs.go
+	@echo "Running the application"
+	@go run cmd/api/main.go
+
+run-consumer:
+	@echo "Running the application"
+	@go run cmd/consumer/main.go
 
 test: ## Run tests
 	@echo "Running tests..."

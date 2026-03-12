@@ -3,14 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"notification-srv/config"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"notification-srv/config"
-	cfgRedis "notification-srv/config/redis"
-	"notification-srv/pkg/discord"
-	"notification-srv/pkg/log"
+	"github.com/smap-hcmut/shared-libs/go/discord"
+	"github.com/smap-hcmut/shared-libs/go/log"
+	"github.com/smap-hcmut/shared-libs/go/redis"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 		return
 	}
 
-	logger := log.Init(log.ZapConfig{
+	logger := log.NewZapLogger(log.ZapConfig{
 		Level:        cfg.Logger.Level,
 		Mode:         cfg.Logger.Mode,
 		Encoding:     cfg.Logger.Encoding,
@@ -30,12 +30,17 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	redisClient, err := cfgRedis.Connect(ctx, cfg.Redis)
+	redisClient, err := redis.New(redis.RedisConfig{
+		Host:     cfg.Redis.Host,
+		Port:     cfg.Redis.Port,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
 	if err != nil {
 		logger.Errorf(ctx, "Failed to connect to Redis: %v", err)
 		return
 	}
-	defer cfgRedis.Disconnect()
+	defer redisClient.Close()
 	logger.Info(ctx, "Redis client initialized")
 
 	discordClient, err := discord.New(logger, cfg.Discord.WebhookURL)

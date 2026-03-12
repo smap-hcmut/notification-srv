@@ -4,7 +4,8 @@ import (
 	"net/http"
 
 	"notification-srv/internal/websocket"
-	"notification-srv/pkg/errors"
+
+	"github.com/smap-hcmut/shared-libs/go/errors"
 )
 
 func (h *Handler) mapError(err error) error {
