@@ -72,9 +72,9 @@ func (m *MockScopeManager) Verify(token string) (scope.Payload, error) {
 	return args.Get(0).(scope.Payload), args.Error(1)
 }
 
-func (m *MockScopeManager) VerifyWithTrace(ctx context.Context, token string) (scope.Payload, error) {
+func (m *MockScopeManager) VerifyWithTrace(ctx context.Context, token string) (scope.Payload, context.Context, error) {
 	args := m.Called(ctx, token)
-	return args.Get(0).(scope.Payload), args.Error(1)
+	return args.Get(0).(scope.Payload), ctx, args.Error(1)
 }
 
 func (m *MockScopeManager) CreateToken(payload scope.Payload) (string, error) {
@@ -82,9 +82,9 @@ func (m *MockScopeManager) CreateToken(payload scope.Payload) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockScopeManager) CreateTokenWithTrace(ctx context.Context, payload scope.Payload) (string, error) {
+func (m *MockScopeManager) CreateTokenWithTrace(ctx context.Context, payload scope.Payload) (string, context.Context, error) {
 	args := m.Called(ctx, payload)
-	return args.String(0), args.Error(1)
+	return args.String(0), ctx, args.Error(1)
 }
 
 func (m *MockScopeManager) VerifyScope(scopeHeader string) (scope.Scope, error) {

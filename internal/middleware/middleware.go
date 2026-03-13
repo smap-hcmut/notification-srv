@@ -26,8 +26,8 @@ func (m Middleware) Auth() gin.HandlerFunc {
 			}
 		}
 
-		// Priority 2: If no token in header, try cookie (for browser with HttpOnly)
-		if tokenString == "" {
+		// Priority 2: If no token in header (or it's just "Bearer "), try cookie (for browser with HttpOnly)
+		if tokenString == "" || tokenString == "Bearer " {
 			tokenString, err = c.Cookie(m.cookieConfig.Name)
 			if err != nil || tokenString == "" {
 				response.Unauthorized(c)

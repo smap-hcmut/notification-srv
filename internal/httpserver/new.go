@@ -13,7 +13,6 @@ import (
 	"github.com/smap-hcmut/shared-libs/go/log"
 	pkgRedis "github.com/smap-hcmut/shared-libs/go/redis"
 	"github.com/smap-hcmut/shared-libs/go/scope"
-	"go.uber.org/zap"
 )
 
 // HTTPServer represents the HTTP server with all dependencies.
@@ -113,15 +112,9 @@ func (srv *HTTPServer) zapLoggerMiddleware() gin.HandlerFunc {
 		}
 
 		if srv.environment == "production" {
-			srv.logger.Info(c.Request.Context(), "HTTP Request",
-				zap.Int("status", status),
-				zap.String("method", c.Request.Method),
-				zap.String("path", path),
-				zap.String("query", query),
-				zap.String("ip", c.ClientIP()),
-				zap.Duration("latency", latency),
-				zap.String("user-agent", c.Request.UserAgent()),
-			)
+			srv.logger.Infof(c.Request.Context(),
+				"HTTP Request - Method: %s, Path: %s, Status: %d, IP: %s, Latency: %v, UserAgent: %s, Query: %s",
+				c.Request.Method, path, status, c.ClientIP(), latency, c.Request.UserAgent(), query)
 		} else {
 			srv.logger.Infof(c.Request.Context(), "%s %s %d %s %s", c.Request.Method, path, status, latency, c.ClientIP())
 		}
