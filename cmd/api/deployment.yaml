@@ -27,7 +27,7 @@ spec:
         - name: harbor-registry
       containers:
         - name: notification-api
-          image: registry.tantai.dev/smap/notification-api:260313-003457
+          image: registry.tantai.dev/smap/notification-api:260313-144508
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8081
