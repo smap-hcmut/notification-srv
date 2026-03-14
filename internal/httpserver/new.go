@@ -12,7 +12,7 @@ import (
 	"github.com/smap-hcmut/shared-libs/go/discord"
 	"github.com/smap-hcmut/shared-libs/go/log"
 	pkgRedis "github.com/smap-hcmut/shared-libs/go/redis"
-	"github.com/smap-hcmut/shared-libs/go/scope"
+	"github.com/smap-hcmut/shared-libs/go/auth"
 )
 
 // HTTPServer represents the HTTP server with all dependencies.
@@ -31,7 +31,7 @@ type HTTPServer struct {
 	wsConfig     config.WebSocketConfig
 
 	// Auth & security
-	jwtMgr    scope.Manager
+	jwtMgr    auth.Manager
 	cookieCfg config.CookieConfig
 
 	// External services
@@ -51,7 +51,7 @@ type Config struct {
 	WSConfig config.WebSocketConfig
 
 	// Auth & security
-	JWTManager scope.Manager
+	JWTManager auth.Manager
 	Cookie     config.CookieConfig
 
 	// External services

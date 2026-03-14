@@ -12,7 +12,7 @@ import (
 	"github.com/smap-hcmut/shared-libs/go/discord"
 	"github.com/smap-hcmut/shared-libs/go/log"
 	"github.com/smap-hcmut/shared-libs/go/redis"
-	"github.com/smap-hcmut/shared-libs/go/scope"
+	"github.com/smap-hcmut/shared-libs/go/auth"
 )
 
 // @title       SMAP Notification Service API
@@ -65,7 +65,7 @@ func main() {
 	logger.Infof(ctx, "Redis client initialized")
 
 	// Scope/JWT Manager (verify tokens from HttpOnly cookie)
-	jwtManager := scope.New(cfg.JWT.SecretKey)
+	jwtManager := auth.NewManager(cfg.JWT.SecretKey)
 	logger.Infof(ctx, "Scope/JWT Manager initialized")
 
 	// Discord - Monitoring & Notification

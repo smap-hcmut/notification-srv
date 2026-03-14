@@ -4,14 +4,12 @@ go 1.25.4
 
 require (
 	github.com/gin-gonic/gin v1.11.0
-	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/redis/go-redis/v9 v9.7.0
-	github.com/smap-hcmut/shared-libs/go v1.0.0
+	github.com/smap-hcmut/shared-libs/go v1.0.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/swag v1.16.6
-	go.uber.org/zap v1.27.0
 )
 
 require (
@@ -62,6 +60,7 @@ require (
 	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -73,6 +72,7 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
+	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

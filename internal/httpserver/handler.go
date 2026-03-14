@@ -5,6 +5,7 @@ import (
 
 	alertUC "notification-srv/internal/alert/usecase"
 	"notification-srv/internal/middleware"
+	sharedmw "github.com/smap-hcmut/shared-libs/go/middleware"
 	wsHTTP "notification-srv/internal/websocket/delivery/http"
 	wsRedis "notification-srv/internal/websocket/delivery/redis"
 	wsUC "notification-srv/internal/websocket/usecase"
@@ -37,7 +38,7 @@ func (srv *HTTPServer) mapHandlers() error {
 	// Delivery: HTTP Handler
 	wsHandler := wsHTTP.New(
 		srv.wsUC,
-		srv.jwtMgr, // No assertion needed, srv.jwtMgr is scope.Manager
+		srv.jwtMgr, // No assertion needed, srv.jwtMgr is auth.Manager
 		srv.logger,
 		wsHTTP.WSConfig{
 			MaxConnections:  srv.wsConfig.MaxConnections,
@@ -49,7 +50,7 @@ func (srv *HTTPServer) mapHandlers() error {
 			Name:     srv.cookieCfg.Name,
 			Domain:   srv.cookieCfg.Domain,
 			Path:     "/",
-			Secure:   srv.cookieCfg.Secure,
+			Secure:   true, // Always secure for WebSocket (production-safe)
 			HttpOnly: true,
 			MaxAge:   srv.cookieCfg.MaxAge,
 		},
@@ -64,12 +65,12 @@ func (srv *HTTPServer) mapHandlers() error {
 
 // registerMiddlewares registers global middlewares
 func (srv *HTTPServer) registerMiddlewares(mw middleware.Middleware) {
-	srv.gin.Use(middleware.Tracing())
-	srv.gin.Use(middleware.Recovery(srv.logger, srv.discord))
+	srv.gin.Use(sharedmw.Tracing())
+	srv.gin.Use(sharedmw.Recovery(srv.logger, srv.discord))
 
 	// CORS configuration based on environment
-	corsConfig := middleware.DefaultCORSConfig(srv.environment)
-	srv.gin.Use(middleware.CORS(corsConfig))
+	corsConfig := sharedmw.DefaultCORSConfig(srv.environment)
+	srv.gin.Use(sharedmw.CORS(corsConfig))
 
 	// Log CORS mode for visibility
 	ctx := context.Background()

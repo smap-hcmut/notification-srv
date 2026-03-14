@@ -35,9 +35,9 @@ func (h *Handler) processUpgradeRequest(c *gin.Context) (UpgradeReq, string, err
 		return UpgradeReq{}, "", websocket.ErrInvalidToken
 	}
 
-	// payload.UserID (assuming scope.Payload struct has UserID field based on pkg/jwt/interface.go usage of Verify returning scope.Payload)
-	// If scope.Payload is map or struct, we need to know.
-	// Based on "Verify(token string) (scope.Payload, error)" in interface.go.
+	// payload.UserID (assuming auth.Payload struct has UserID field based on pkg/jwt/interface.go usage of Verify returning auth.Payload)
+	// If auth.Payload is map or struct, we need to know.
+	// Based on "Verify(token string) (auth.Payload, error)" in interface.go.
 	// We assume payload has UserID field or method.
 	// Let's assume it's a struct with UserID.
 

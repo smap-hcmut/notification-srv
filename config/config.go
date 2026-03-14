@@ -67,13 +67,12 @@ type JWTConfig struct {
 }
 
 // CookieConfig is the configuration for HttpOnly cookie authentication
+// Note: Secure and SameSite are now dynamically determined by auth.Middleware
+// based on the request Origin header. Bearer token acceptance is controlled by ENVIRONMENT_NAME.
 type CookieConfig struct {
-	Domain         string
-	Secure         bool
-	SameSite       string
-	MaxAge         int
-	MaxAgeRemember int
-	Name           string
+	Name   string // Cookie name (e.g., "smap_auth_token")
+	MaxAge int    // Cookie max age in seconds (e.g., 28800 for 8 hours)
+	Domain string // Production domain for cookies (e.g., ".tantai.dev")
 }
 
 // LoggerConfig is the configuration for the logger
@@ -150,12 +149,9 @@ func Load() (*Config, error) {
 	cfg.JWT.SecretKey = viper.GetString("jwt.secret_key")
 
 	// Cookie
-	cfg.Cookie.Domain = viper.GetString("cookie.domain")
-	cfg.Cookie.Secure = viper.GetBool("cookie.secure")
-	cfg.Cookie.SameSite = viper.GetString("cookie.samesite")
-	cfg.Cookie.MaxAge = viper.GetInt("cookie.max_age")
-	cfg.Cookie.MaxAgeRemember = viper.GetInt("cookie.max_age_remember")
 	cfg.Cookie.Name = viper.GetString("cookie.name")
+	cfg.Cookie.MaxAge = viper.GetInt("cookie.max_age")
+	cfg.Cookie.Domain = viper.GetString("cookie.domain")
 
 	// Discord
 	cfg.Discord.WebhookURL = viper.GetString("discord.webhook_url")
@@ -198,12 +194,9 @@ func setDefaults() {
 	viper.SetDefault("websocket.max_connections", 10000)
 
 	// Cookie
-	viper.SetDefault("cookie.domain", ".smap.com")
-	viper.SetDefault("cookie.secure", true)
-	viper.SetDefault("cookie.samesite", "Lax")
-	viper.SetDefault("cookie.max_age", 7200)
-	viper.SetDefault("cookie.max_age_remember", 2592000)
 	viper.SetDefault("cookie.name", "smap_auth_token")
+	viper.SetDefault("cookie.max_age", 28800)    // 8 hours
+	viper.SetDefault("cookie.domain", ".tantai.dev")
 
 	// Discord (optional)
 	viper.SetDefault("discord.webhook_url", "")
@@ -268,12 +261,9 @@ func bindEnv() error {
 
 		"jwt.secret_key": {"JWT_SECRET_KEY"},
 
-		"cookie.domain":           {"COOKIE_DOMAIN"},
-		"cookie.secure":           {"COOKIE_SECURE"},
-		"cookie.samesite":         {"COOKIE_SAMESITE"},
-		"cookie.max_age":          {"COOKIE_MAX_AGE"},
-		"cookie.max_age_remember": {"COOKIE_MAX_AGE_REMEMBER"},
-		"cookie.name":             {"COOKIE_NAME"},
+		"cookie.name":   {"COOKIE_NAME"},
+		"cookie.max_age": {"COOKIE_MAX_AGE"},
+		"cookie.domain": {"COOKIE_DOMAIN"},
 
 		"discord.webhook_url": {"DISCORD_WEBHOOK_URL"},
 	}
