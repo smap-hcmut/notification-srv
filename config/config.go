@@ -24,8 +24,9 @@ type Config struct {
 	WebSocket WebSocketConfig
 
 	// Authentication & Security Configuration
-	JWT    JWTConfig
-	Cookie CookieConfig
+	JWT            JWTConfig
+	Cookie         CookieConfig
+	InternalConfig InternalConfig
 
 	// Monitoring & Notification Configuration
 	Discord DiscordConfig
@@ -86,6 +87,11 @@ type LoggerConfig struct {
 // DiscordConfig is the configuration for Discord webhook notifications
 type DiscordConfig struct {
 	WebhookURL string
+}
+
+// InternalConfig is the configuration for internal service authentication.
+type InternalConfig struct {
+	InternalKey string
 }
 
 // Load loads configuration using Viper
@@ -153,6 +159,9 @@ func Load() (*Config, error) {
 	cfg.Cookie.MaxAge = viper.GetInt("cookie.max_age")
 	cfg.Cookie.Domain = viper.GetString("cookie.domain")
 
+	// Internal auth
+	cfg.InternalConfig.InternalKey = viper.GetString("internal.internal_key")
+
 	// Discord
 	cfg.Discord.WebhookURL = viper.GetString("discord.webhook_url")
 
@@ -195,8 +204,11 @@ func setDefaults() {
 
 	// Cookie
 	viper.SetDefault("cookie.name", "smap_auth_token")
-	viper.SetDefault("cookie.max_age", 28800)    // 8 hours
+	viper.SetDefault("cookie.max_age", 28800) // 8 hours
 	viper.SetDefault("cookie.domain", ".tantai.dev")
+
+	// Internal auth
+	viper.SetDefault("internal.internal_key", "")
 
 	// Discord (optional)
 	viper.SetDefault("discord.webhook_url", "")
@@ -261,9 +273,9 @@ func bindEnv() error {
 
 		"jwt.secret_key": {"JWT_SECRET_KEY"},
 
-		"cookie.name":   {"COOKIE_NAME"},
+		"cookie.name":    {"COOKIE_NAME"},
 		"cookie.max_age": {"COOKIE_MAX_AGE"},
-		"cookie.domain": {"COOKIE_DOMAIN"},
+		"cookie.domain":  {"COOKIE_DOMAIN"},
 
 		"discord.webhook_url": {"DISCORD_WEBHOOK_URL"},
 	}

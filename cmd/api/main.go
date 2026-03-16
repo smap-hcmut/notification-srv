@@ -9,10 +9,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/smap-hcmut/shared-libs/go/auth"
 	"github.com/smap-hcmut/shared-libs/go/discord"
 	"github.com/smap-hcmut/shared-libs/go/log"
 	"github.com/smap-hcmut/shared-libs/go/redis"
-	"github.com/smap-hcmut/shared-libs/go/auth"
 )
 
 // @title       SMAP Notification Service API
@@ -88,8 +88,9 @@ func main() {
 		WSConfig: cfg.WebSocket,
 
 		// Auth & security
-		JWTManager: jwtManager,
-		Cookie:     cfg.Cookie,
+		JWTManager:  jwtManager,
+		Cookie:      cfg.Cookie,
+		InternalKey: cfg.InternalConfig.InternalKey,
 
 		// External services
 		Redis:   redisClient,

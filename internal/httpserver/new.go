@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/smap-hcmut/shared-libs/go/auth"
 	"github.com/smap-hcmut/shared-libs/go/discord"
 	"github.com/smap-hcmut/shared-libs/go/log"
 	pkgRedis "github.com/smap-hcmut/shared-libs/go/redis"
-	"github.com/smap-hcmut/shared-libs/go/auth"
 )
 
 // HTTPServer represents the HTTP server with all dependencies.
@@ -31,8 +31,9 @@ type HTTPServer struct {
 	wsConfig     config.WebSocketConfig
 
 	// Auth & security
-	jwtMgr    auth.Manager
-	cookieCfg config.CookieConfig
+	jwtMgr      auth.Manager
+	cookieCfg   config.CookieConfig
+	internalKey string
 
 	// External services
 	redis   pkgRedis.IRedis
@@ -51,8 +52,9 @@ type Config struct {
 	WSConfig config.WebSocketConfig
 
 	// Auth & security
-	JWTManager auth.Manager
-	Cookie     config.CookieConfig
+	JWTManager  auth.Manager
+	Cookie      config.CookieConfig
+	InternalKey string
 
 	// External services
 	Redis   pkgRedis.IRedis
@@ -77,8 +79,9 @@ func New(logger log.Logger, cfg Config) (*HTTPServer, error) {
 		wsConfig: cfg.WSConfig,
 
 		// Auth & security
-		jwtMgr:    cfg.JWTManager,
-		cookieCfg: cfg.Cookie,
+		jwtMgr:      cfg.JWTManager,
+		cookieCfg:   cfg.Cookie,
+		internalKey: cfg.InternalKey,
 
 		// External services
 		redis:   cfg.Redis,

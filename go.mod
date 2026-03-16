@@ -2,6 +2,8 @@ module notification-srv
 
 go 1.25.4
 
+replace github.com/smap-hcmut/shared-libs/go => ../shared-libs/go
+
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/gorilla/websocket v1.5.3

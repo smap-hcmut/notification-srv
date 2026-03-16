@@ -13,10 +13,11 @@ import (
 type Middleware struct {
 	authMiddleware *auth.Middleware
 	logger         log.Logger
+	InternalKey    string
 }
 
 // New creates a new middleware using shared-libs auth.Middleware
-func New(logger log.Logger, jwtManager auth.Manager, cookieConfig config.CookieConfig) Middleware {
+func New(logger log.Logger, jwtManager auth.Manager, cookieConfig config.CookieConfig, internalKey string) Middleware {
 	authMiddleware := auth.NewMiddleware(auth.MiddlewareConfig{
 		Manager:                 jwtManager,
 		CookieName:              cookieConfig.Name,
@@ -27,6 +28,7 @@ func New(logger log.Logger, jwtManager auth.Manager, cookieConfig config.CookieC
 	return Middleware{
 		authMiddleware: authMiddleware,
 		logger:         logger,
+		InternalKey:    internalKey,
 	}
 }
 

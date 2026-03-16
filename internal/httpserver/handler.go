@@ -3,9 +3,9 @@ package httpserver
 import (
 	"context"
 
+	sharedmw "github.com/smap-hcmut/shared-libs/go/middleware"
 	alertUC "notification-srv/internal/alert/usecase"
 	"notification-srv/internal/middleware"
-	sharedmw "github.com/smap-hcmut/shared-libs/go/middleware"
 	wsHTTP "notification-srv/internal/websocket/delivery/http"
 	wsRedis "notification-srv/internal/websocket/delivery/redis"
 	wsUC "notification-srv/internal/websocket/usecase"
@@ -14,7 +14,7 @@ import (
 // mapHandlers initializes and maps all HTTP routes
 func (srv *HTTPServer) mapHandlers() error {
 	// Initialize middleware
-	mw := middleware.New(srv.logger, srv.jwtMgr, srv.cookieCfg)
+	mw := middleware.New(srv.logger, srv.jwtMgr, srv.cookieCfg, srv.internalKey)
 
 	// Register middlewares
 	srv.registerMiddlewares(mw)

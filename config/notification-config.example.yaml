@@ -40,5 +40,8 @@ cookie:
   max_age_remember: 2592000
   name: smap_auth_token
 
+internal:
+  internal_key: ""
+
 discord:
   webhook_url: ""
