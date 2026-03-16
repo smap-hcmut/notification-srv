@@ -27,7 +27,7 @@ spec:
         - name: harbor-registry
       containers:
         - name: notification-consumer
-          image: registry.tantai.dev/smap/notification-consumer:260316-234544
+          image: registry.tantai.dev/smap/notification-consumer:260316-235039
           imagePullPolicy: IfNotPresent
           resources:
             requests:
