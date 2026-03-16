@@ -8,7 +8,7 @@ import (
 
 // processUpgradeRequest handles the initial request processing before upgrade.
 // It extracts the token, validates it, and returns the upgrade request info and keys.
-func (h *Handler) processUpgradeRequest(c *gin.Context) (UpgradeReq, string, error) {
+func (h *handler) processUpgradeRequest(c *gin.Context) (UpgradeReq, string, error) {
 	var req UpgradeReq
 
 	// 1. Bind Query Params (token, project_id)

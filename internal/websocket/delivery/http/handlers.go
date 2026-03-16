@@ -17,7 +17,7 @@ import (
 // @Success 101 {string} string "Switching Protocols"
 // @Failure 401 {object} response.Resp "Unauthorized"
 // @Router /ws [GET]
-func (h *Handler) HandleWebSocket(c *gin.Context) {
+func (h *handler) HandleWebSocket(c *gin.Context) {
 	// 1. Process Request (Auth & Validation)
 	req, userID, err := h.processUpgradeRequest(c)
 	if err != nil {

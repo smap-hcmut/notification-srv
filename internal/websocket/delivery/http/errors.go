@@ -2,13 +2,12 @@ package http
 
 import (
 	"net/http"
-
 	"notification-srv/internal/websocket"
 
 	"github.com/smap-hcmut/shared-libs/go/errors"
 )
 
-func (h *Handler) mapError(err error) error {
+func (h *handler) mapError(err error) error {
 	switch err {
 	case websocket.ErrInvalidToken:
 		return errors.NewHTTPError(http.StatusUnauthorized, "Invalid or expired token")

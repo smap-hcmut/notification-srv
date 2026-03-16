@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"notification-srv/internal/alert"
-	"notification-srv/internal/middleware"
 	wsConfig "notification-srv/internal/websocket/delivery/http" // Alias to avoid conflict
 	"notification-srv/internal/websocket/usecase"
 	"strings"
@@ -13,8 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/smap-hcmut/shared-libs/go/log"
 	"github.com/smap-hcmut/shared-libs/go/auth"
+	"github.com/smap-hcmut/shared-libs/go/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -133,7 +132,7 @@ func TestWebSocketConnection(t *testing.T) {
 	// Setup Router
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	handler.RegisterRoutes(r.Group(""), middleware.Middleware{})
+	handler.RegisterRoutes(r.Group(""), nil)
 
 	// Test Server
 	server := httptest.NewServer(r)
@@ -173,7 +172,7 @@ func TestWebSocketMissingToken(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	handler.RegisterRoutes(r.Group(""), middleware.Middleware{})
+	handler.RegisterRoutes(r.Group(""), nil)
 
 	server := httptest.NewServer(r)
 	defer server.Close()

@@ -2,16 +2,15 @@ package httpserver
 
 import (
 	"errors"
-
 	"notification-srv/config"
 	"notification-srv/internal/websocket"
 	"notification-srv/internal/websocket/delivery/redis"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/smap-hcmut/shared-libs/go/auth"
 	"github.com/smap-hcmut/shared-libs/go/discord"
 	"github.com/smap-hcmut/shared-libs/go/log"
+	"github.com/smap-hcmut/shared-libs/go/middleware"
 	pkgRedis "github.com/smap-hcmut/shared-libs/go/redis"
 )
 
@@ -89,7 +88,7 @@ func New(logger log.Logger, cfg Config) (*HTTPServer, error) {
 	}
 
 	// Add middlewares
-	srv.gin.Use(srv.zapLoggerMiddleware())
+	srv.gin.Use(middleware.Logger(srv.logger, srv.environment))
 	srv.gin.Use(gin.Recovery())
 
 	if err := srv.validate(); err != nil {
@@ -97,31 +96,6 @@ func New(logger log.Logger, cfg Config) (*HTTPServer, error) {
 	}
 
 	return srv, nil
-}
-
-func (srv *HTTPServer) zapLoggerMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		path := c.Request.URL.Path
-		query := c.Request.URL.RawQuery
-
-		c.Next()
-
-		latency := time.Since(start)
-		status := c.Writer.Status()
-
-		if path == "/health" || path == "/ready" || path == "/live" {
-			return
-		}
-
-		if srv.environment == "production" {
-			srv.logger.Infof(c.Request.Context(),
-				"HTTP Request - Method: %s, Path: %s, Status: %d, IP: %s, Latency: %v, UserAgent: %s, Query: %s",
-				c.Request.Method, path, status, c.ClientIP(), latency, c.Request.UserAgent(), query)
-		} else {
-			srv.logger.Infof(c.Request.Context(), "%s %s %d %s %s", c.Request.Method, path, status, latency, c.ClientIP())
-		}
-	}
 }
 
 // validate ensures all required dependencies are provided.

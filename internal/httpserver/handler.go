@@ -2,22 +2,27 @@ package httpserver
 
 import (
 	"context"
-
-	sharedmw "github.com/smap-hcmut/shared-libs/go/middleware"
 	alertUC "notification-srv/internal/alert/usecase"
-	"notification-srv/internal/middleware"
+	"notification-srv/internal/model"
 	wsHTTP "notification-srv/internal/websocket/delivery/http"
 	wsRedis "notification-srv/internal/websocket/delivery/redis"
 	wsUC "notification-srv/internal/websocket/usecase"
+
+	"github.com/smap-hcmut/shared-libs/go/middleware"
 )
 
 // mapHandlers initializes and maps all HTTP routes
 func (srv *HTTPServer) mapHandlers() error {
 	// Initialize middleware
-	mw := middleware.New(srv.logger, srv.jwtMgr, srv.cookieCfg, srv.internalKey)
+	mw := middleware.New(middleware.Config{
+		JWTManager:       srv.jwtMgr,
+		CookieName:       srv.cookieCfg.Name,
+		ProductionDomain: srv.cookieCfg.Domain,
+		InternalKey:      srv.internalKey,
+	})
 
 	// Register middlewares
-	srv.registerMiddlewares(mw)
+	srv.registerMiddlewares()
 
 	// Register system routes (health checks)
 	srv.registerSystemRoutes()
@@ -58,19 +63,19 @@ func (srv *HTTPServer) mapHandlers() error {
 	)
 
 	// Register Routes
-	wsHandler.RegisterRoutes(srv.gin.Group(""), mw)
+	wsHandler.RegisterRoutes(srv.gin.Group(model.APIV1Prefix), mw)
 
 	return nil
 }
 
 // registerMiddlewares registers global middlewares
-func (srv *HTTPServer) registerMiddlewares(mw middleware.Middleware) {
-	srv.gin.Use(sharedmw.Tracing())
-	srv.gin.Use(sharedmw.Recovery(srv.logger, srv.discord))
+func (srv *HTTPServer) registerMiddlewares() {
+	srv.gin.Use(middleware.Tracing())
+	srv.gin.Use(middleware.Recovery(srv.logger, srv.discord))
 
 	// CORS configuration based on environment
-	corsConfig := sharedmw.DefaultCORSConfig(srv.environment)
-	srv.gin.Use(sharedmw.CORS(corsConfig))
+	corsConfig := middleware.DefaultCORSConfig(srv.environment)
+	srv.gin.Use(middleware.CORS(corsConfig))
 
 	// Log CORS mode for visibility
 	ctx := context.Background()
