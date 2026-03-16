@@ -80,7 +80,7 @@ func (srv *HTTPServer) registerMiddlewares() {
 
 	// Log CORS mode for visibility
 	ctx := context.Background()
-	if srv.environment == "production" {
+	if srv.environment == string(model.EnvironmentProduction) {
 		srv.logger.Infof(ctx, "CORS mode: production (strict origins only)")
 	} else {
 		srv.logger.Infof(ctx, "CORS mode: %s (permissive - allows localhost and private subnets)", srv.environment)
