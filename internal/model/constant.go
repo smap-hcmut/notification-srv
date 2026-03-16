@@ -6,4 +6,5 @@ const (
 	EnvironmentDevelopment Environment = "development"
 	EnvironmentProduction  Environment = "production"
 	APIV1Prefix                        = "api/v1"
+	Production                         = "production"
 )
