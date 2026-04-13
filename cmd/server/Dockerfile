@@ -33,7 +33,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     -mod=vendor \
     -ldflags="-s -w" \
     -trimpath \
-    -o api-server ./cmd/api
+    -o notification-srv ./cmd/server
 
 # =============================================================================
 # STAGE 2: RUNTIME (Distroless Static — ~2MB, no shell, minimal attack surface)
@@ -45,10 +45,10 @@ WORKDIR /app
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 ENV TZ=Asia/Ho_Chi_Minh
 
-COPY --from=builder --chown=nonroot:nonroot /app/api-server .
+COPY --from=builder --chown=nonroot:nonroot /app/notification-srv .
 
 USER nonroot:nonroot
 
 EXPOSE 8081
 
-ENTRYPOINT ["./api-server"]
+ENTRYPOINT ["./notification-srv"]

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SMAP Notification API - Build and Push to Zot Registry
+# SMAP Notification Service - Build and Push to Zot Registry
 # Usage: ./scripts/build-api.sh [build-push|login|help]
 
 set -euo pipefail
@@ -17,8 +17,8 @@ REGISTRY="${HARBOR_REGISTRY:-registry.tantai.dev}"
 HARBOR_USER="${HARBOR_USERNAME:?HARBOR_USERNAME is not set}"
 HARBOR_PASS="${HARBOR_PASSWORD:?HARBOR_PASSWORD is not set. Export it in ~/.zshrc}"
 PROJECT="smap"
-SERVICE="notification-api"
-DOCKERFILE="cmd/api/Dockerfile"
+SERVICE="notification-srv"
+DOCKERFILE="cmd/server/Dockerfile"
 PLATFORM="${PLATFORM:-linux/amd64}"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ build_and_push() {
 # ── Help ─────────────────────────────────────────────────────────────────────
 show_help() {
     cat <<EOF
-${GREEN}SMAP Notification API - Build & Push (Zot Registry)${NC}
+${GREEN}SMAP Notification Service - Build & Push (Zot Registry)${NC}
 
 Usage: $0 [command]
 

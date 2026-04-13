@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: notification-api
+  name: notification-srv
   namespace: smap
   labels:
-    app: notification-api
+    app: notification-srv
     version: v1
 spec:
   replicas: 1
   revisionHistoryLimit: 5
   selector:
     matchLabels:
-      app: notification-api
+      app: notification-srv
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -20,14 +20,14 @@ spec:
   template:
     metadata:
       labels:
-        app: notification-api
+        app: notification-srv
         version: v1
     spec:
       imagePullSecrets:
         - name: harbor-registry
       containers:
-        - name: notification-api
-          image: registry.tantai.dev/smap/notification-api:260316-235033
+        - name: notification-srv
+          image: registry.tantai.dev/smap/notification-srv:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8081
@@ -47,7 +47,7 @@ spec:
                 name: notification-secrets
           env:
             - name: CONTAINER_NAME
-              value: "notification-api"
+              value: "notification-srv"
             - name: KUBERNETES_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -89,13 +89,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: notification-api
+  name: notification-srv
   namespace: smap
   labels:
-    app: notification-api
+    app: notification-srv
 spec:
   selector:
-    app: notification-api
+    app: notification-srv
   ports:
     - port: 80
       targetPort: 8081
