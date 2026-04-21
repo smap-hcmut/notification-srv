@@ -80,7 +80,12 @@ func (s *subscriber) listen(ctx context.Context) {
 		select {
 		case msg, ok := <-ch:
 			if !ok {
-				s.logger.Warnf(ctx, "redis pubsub channel closed")
+				select {
+				case <-s.quit:
+					// Normal shutdown — pubsub closed as part of Shutdown()
+				default:
+					s.logger.Errorf(ctx, "notification-srv: redis pubsub channel closed unexpectedly — notifications halted")
+				}
 				return
 			}
 			s.handleMessage(ctx, msg)

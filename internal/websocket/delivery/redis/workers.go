@@ -15,6 +15,6 @@ func (s *subscriber) handleMessage(ctx context.Context, msg *redis.Message) {
 	}
 
 	if err := s.uc.ProcessMessage(ctx, input); err != nil {
-		s.logger.Warnf(ctx, "process message failed: channel=%s err=%v", msg.Channel, err)
+		s.logger.Errorf(ctx, "process message failed: channel=%s err=%v", msg.Channel, err)
 	}
 }

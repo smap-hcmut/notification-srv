@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -54,7 +55,7 @@ func (c *Connection) readPump() {
 		_, _, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				// Log error if needed, for now just exit
+				c.hub.logger.Warnf(context.Background(), "websocket: unexpected close error user_id=%s: %v", c.userID, err)
 			}
 			break
 		}
