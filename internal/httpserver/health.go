@@ -19,10 +19,17 @@ import (
 func (srv *HTTPServer) healthCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 
+	redisStatus := "disconnected"
+	if srv.redis != nil {
+		if err := srv.redis.Ping(ctx); err == nil {
+			redisStatus = "connected"
+		}
+	}
+
 	// Check Redis connection
-	if err := srv.redis.Ping(ctx); err != nil {
-		response.Error(c, errors.NewInternalServerError("Redis connection failed"))
-		return
+	if srv.redis == nil {
+		// Not fatal for liveness; service can still run in degraded mode.
+		redisStatus = "disconnected"
 	}
 
 	// Get Hub stats for health info
@@ -40,7 +47,7 @@ func (srv *HTTPServer) healthCheck(c *gin.Context) {
 		"service":            "notification-srv",
 		"active_connections": hubStats.ActiveConnections,
 		"total_unique_users": hubStats.TotalUniqueUsers,
-		"redis":              "connected",
+		"redis":              redisStatus,
 	})
 }
 
@@ -56,9 +63,19 @@ func (srv *HTTPServer) healthCheck(c *gin.Context) {
 func (srv *HTTPServer) readyCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 
+	if srv.redis == nil {
+		response.Error(c, errors.NewInternalServerError("Redis client not initialized"))
+		return
+	}
+
 	// Check if Redis is ready
 	if err := srv.redis.Ping(ctx); err != nil {
 		response.Error(c, errors.NewInternalServerError("Redis connection not available"))
+		return
+	}
+
+	if srv.wsSubscriber == nil {
+		response.Error(c, errors.NewInternalServerError("WebSocket subscriber not initialized"))
 		return
 	}
 

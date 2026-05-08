@@ -38,7 +38,12 @@ func (srv *HTTPServer) mapHandlers() error {
 	srv.wsUC = wsUC.New(srv.logger, srv.wsConfig.MaxConnections, alertUseCase)
 
 	// Delivery: Redis Subscriber
-	srv.wsSubscriber = wsRedis.New(srv.redis, srv.wsUC, srv.logger)
+	if srv.redis != nil {
+		srv.wsSubscriber = wsRedis.New(srv.redis, srv.wsUC, srv.logger)
+	} else {
+		srv.logger.Warn(context.Background(), "notification-srv: Redis unavailable, running with websocket features disabled")
+		srv.wsSubscriber = nil
+	}
 	// Subscriber start is handled in Run()
 
 	// Delivery: HTTP Handler

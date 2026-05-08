@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"notification-srv/config"
+	"notification-srv/internal/analyticsbridge"
 	"notification-srv/internal/httpserver"
 	"os"
 	"os/signal"
@@ -58,11 +59,12 @@ func main() {
 		DB:       cfg.Redis.DB,
 	})
 	if err != nil {
-		logger.Errorf(ctx, "Failed to connect to Redis: %v", err)
-		return
+		logger.Warnf(ctx, "Redis connection failed: %v. Starting service in degraded mode (WebSocket features disabled).", err)
+		redisClient = nil
+	} else {
+		defer redisClient.Close()
+		logger.Infof(ctx, "Redis client initialized")
 	}
-	defer redisClient.Close()
-	logger.Infof(ctx, "Redis client initialized")
 
 	// Scope/JWT Manager (verify tokens from HttpOnly cookie)
 	jwtManager := auth.NewManager(cfg.JWT.SecretKey)
@@ -99,6 +101,14 @@ func main() {
 	if err != nil {
 		logger.Error(ctx, "Failed to initialize HTTP server: ", err)
 		return
+	}
+
+	analyticsBridge, err := analyticsbridge.NewFromEnv(ctx, logger, redisClient)
+	if err != nil {
+		logger.Warnf(ctx, "Analytics notification bridge disabled: %v", err)
+	} else if analyticsBridge != nil {
+		analyticsBridge.Start(ctx)
+		defer analyticsBridge.Close()
 	}
 
 	if err := httpServer.Run(); err != nil {

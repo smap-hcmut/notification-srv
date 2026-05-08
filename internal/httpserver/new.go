@@ -109,9 +109,6 @@ func (s *HTTPServer) validate() error {
 	if s.jwtMgr == nil {
 		return errors.New("JWTManager is required")
 	}
-	if s.redis == nil {
-		return errors.New("Redis client is required")
-	}
 
 	return nil
 }

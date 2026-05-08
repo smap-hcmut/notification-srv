@@ -29,9 +29,11 @@ func (srv *HTTPServer) Run() error {
 	srv.logger.Info(ctx, "WebSocket UseCase background service started")
 
 	// Start Redis Subscriber
-	if err := srv.wsSubscriber.Start(); err != nil {
-		srv.logger.Fatalf(ctx, "Failed to start Redis subscriber: %v", err)
-		return err
+	if srv.wsSubscriber != nil {
+		if err := srv.wsSubscriber.Start(); err != nil {
+			srv.logger.Warnf(ctx, "Failed to start Redis subscriber: %v (websocket features disabled)", err)
+			srv.wsSubscriber = nil
+		}
 	}
 
 	// 3. Start HTTP server in background
@@ -53,8 +55,10 @@ func (srv *HTTPServer) Run() error {
 	if err := srv.wsUC.Shutdown(ctx); err != nil {
 		srv.logger.Errorf(ctx, "WebSocket UseCase shutdown error: %v", err)
 	}
-	if err := srv.wsSubscriber.Shutdown(ctx); err != nil {
-		srv.logger.Errorf(ctx, "Redis Subscriber shutdown error: %v", err)
+	if srv.wsSubscriber != nil {
+		if err := srv.wsSubscriber.Shutdown(ctx); err != nil {
+			srv.logger.Errorf(ctx, "Redis Subscriber shutdown error: %v", err)
+		}
 	}
 
 	return nil
