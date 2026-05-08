@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net/url"
 	"notification-srv/internal/websocket"
 
 	"github.com/gin-gonic/gin"
@@ -12,9 +13,12 @@ func (h *handler) processUpgradeRequest(c *gin.Context) (UpgradeReq, string, err
 	var req UpgradeReq
 
 	// 1. Bind Query Params (token, project_id)
-	if err := c.ShouldBindQuery(&req); err != nil {
+	query, err := url.ParseQuery(c.Request.URL.RawQuery)
+	if err != nil {
 		return UpgradeReq{}, "", websocket.ErrInvalidMessage
 	}
+	req.Token = query.Get("token")
+	req.ProjectID = query.Get("project_id")
 
 	// 2. Fallback: Check Cookie if token missing
 	if req.Token == "" {

@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -15,12 +16,17 @@ const (
 	// Time allowed to read the next pong message from the peer.
 	pongWait = 60 * time.Second
 
-	// Send pings to peer with this period. Must be less than pongWait.
-	pingPeriod = (pongWait * 9) / 10
-
 	// Maximum message size allowed from peer.
 	maxMessageSize = 512
 )
+
+// Send pings to peer with this period. Must be less than pongWait.
+var pingPeriod = (pongWait * 9) / 10
+
+var afterWriteMessage func()
+var nextWebsocketWriter = func(conn *websocket.Conn, messageType int) (io.WriteCloser, error) {
+	return conn.NextWriter(messageType)
+}
 
 // Connection is a middleman between the websocket connection and the hub.
 type Connection struct {
@@ -85,11 +91,14 @@ func (c *Connection) writePump(logger log.Logger) {
 				return
 			}
 
-			w, err := c.conn.NextWriter(websocket.TextMessage)
+			w, err := nextWebsocketWriter(c.conn, websocket.TextMessage)
 			if err != nil {
 				return
 			}
 			w.Write(message)
+			if afterWriteMessage != nil {
+				afterWriteMessage()
+			}
 
 			// Add queued chat messages to the current websocket message.
 			n := len(c.send)

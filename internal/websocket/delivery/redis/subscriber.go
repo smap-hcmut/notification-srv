@@ -15,6 +15,10 @@ type subscriberImpl struct {
 	quit        chan struct{}
 }
 
+var closePubSub = func(pubsub *redis.PubSub) error {
+	return pubsub.Close()
+}
+
 // Ensure subscriber implements Subscriber interface.
 // Since subscriber struct in new.go has fields but no methods on *subscriber,
 // we might need to adjust how New returns.
@@ -98,7 +102,7 @@ func (s *subscriber) listen(ctx context.Context) {
 func (s *subscriber) Shutdown(ctx context.Context) error {
 	close(s.quit)
 	if s.pubsub != nil {
-		if err := s.pubsub.Close(); err != nil {
+		if err := closePubSub(s.pubsub); err != nil {
 			s.logger.Errorf(ctx, "failed to close pubsub: %v", err)
 		}
 	}

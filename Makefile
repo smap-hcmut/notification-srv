@@ -14,9 +14,13 @@ run: ## Run the notification service
 	@echo "Running the application"
 	@go run cmd/server/main.go
 
-test: ## Run tests
+test: 
 	@echo "Running tests..."
-	go test -v -cover ./...
+	@go test -mod=vendor -coverprofile=coverage.out -failfast -timeout 5m ./internal/...
+	@grep -v 'mock_' coverage.out > c.out
+	@go tool cover -func=c.out | grep '^total:'
+	@echo "Coverage summary generated"
+	@rm -f *.out
 
 lint: ## Run linter
 	@echo "Running linter..."

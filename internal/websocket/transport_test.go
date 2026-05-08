@@ -181,11 +181,5 @@ func TestWebSocketMissingToken(t *testing.T) {
 
 	_, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	assert.Error(t, err)
-	// Expect 400 Bad Request because 'token' is binding required/bound via validation?
-	// Or 401? presenters.go: toInput validates it.
-	// process_request.go: binds params.
-	// If presenters.go validation fails, it returns error.
-
-	// Let's assert strictly on error existence first. status might be 400.
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }

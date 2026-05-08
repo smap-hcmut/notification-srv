@@ -19,6 +19,8 @@ type implUseCase struct {
 	maxConnections int
 }
 
+var marshalNotification = json.Marshal
+
 // New creates a new WebSocket UseCase.
 func New(logger log.Logger, maxConnections int, alertUC alert.UseCase) ws.UseCase {
 	hub := newHub(logger, maxConnections)
@@ -169,7 +171,7 @@ func (uc *implUseCase) ProcessMessage(ctx context.Context, input ws.ProcessMessa
 	}
 
 	// 5. Route to WebSocket connections
-	outputBytes, err := json.Marshal(output)
+	outputBytes, err := marshalNotification(output)
 	if err != nil {
 		return fmt.Errorf("marshal output: %w", err)
 	}
