@@ -45,7 +45,7 @@ WORKDIR /app
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 ENV TZ=Asia/Ho_Chi_Minh
 
-COPY --from=builder --chown=nonroot:nonroot /app/notification-srv .
+COPY --from=builder --chown=65532:65532 /app/notification-srv .
 
 USER nonroot:nonroot
 

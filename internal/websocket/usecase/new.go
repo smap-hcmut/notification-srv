@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"notification-srv/internal/alert"
 	ws "notification-srv/internal/websocket"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/smap-hcmut/shared-libs/go/log"
@@ -104,6 +105,13 @@ func (uc *implUseCase) ProcessMessage(ctx context.Context, input ws.ProcessMessa
 		// Needs unmarshaling payload to CrisisAlertPayload to pass to DispatchCrisisAlert
 		// transformMessage already did that but returned NotificationOutput.Payload as interface{}
 		if payloadData, ok := output.Payload.(ws.CrisisAlertPayload); ok {
+			opsAlert := true
+			if payloadData.OpsAlert != nil {
+				opsAlert = *payloadData.OpsAlert
+			}
+			if !strings.EqualFold(payloadData.Severity, "critical") || !opsAlert {
+				break
+			}
 			// Map to alert.CrisisAlertInput
 			alertInput := alert.CrisisAlertInput{
 				ProjectID:       payloadData.ProjectID,

@@ -90,6 +90,9 @@ type CrisisAlertPayload struct {
 	SampleMentions  []string `json:"sample_mentions"`
 	TimeWindow      string   `json:"time_window"`
 	ActionRequired  string   `json:"action_required"`
+	Title           string   `json:"title,omitempty"`
+	Message         string   `json:"message,omitempty"`
+	OpsAlert        *bool    `json:"ops_alert,omitempty"`
 }
 
 type CampaignEventPayload struct {

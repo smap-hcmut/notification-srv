@@ -18,6 +18,7 @@ import (
 const (
 	defaultGroupID      = "notification-service"
 	defaultDigestTopic  = "analytics.report.digest"
+	defaultCrisisTopic  = "analytics.crisis.alert"
 	defaultRedisChannel = "system:analytics"
 )
 
@@ -26,6 +27,7 @@ type Config struct {
 	Brokers      string
 	GroupID      string
 	DigestTopic  string
+	CrisisTopic  string
 	RedisChannel string
 }
 
@@ -45,6 +47,29 @@ type digestPayload struct {
 	TotalMentions int    `json:"total_mentions"`
 	MentionCount  int    `json:"mention_count"`
 	DomainOverlay string `json:"domain_overlay"`
+}
+
+type crisisAlertPayload struct {
+	AlertType       string   `json:"alert_type"`
+	ProjectID       string   `json:"project_id"`
+	ProjectName     string   `json:"project_name"`
+	CampaignID      string   `json:"campaign_id,omitempty"`
+	UserID          string   `json:"user_id"`
+	Severity        string   `json:"severity"`
+	Level           string   `json:"level,omitempty"`
+	Metric          string   `json:"metric"`
+	CurrentValue    float64  `json:"current_value"`
+	Threshold       float64  `json:"threshold"`
+	AffectedAspects []string `json:"affected_aspects"`
+	SampleMentions  []string `json:"sample_mentions"`
+	TimeWindow      string   `json:"time_window"`
+	ActionRequired  string   `json:"action_required"`
+	RunID           string   `json:"run_id,omitempty"`
+	Title           string   `json:"title,omitempty"`
+	Message         string   `json:"message,omitempty"`
+	RepeatCooldown  int      `json:"repeat_cooldown_minutes,omitempty"`
+	OpsAlert        bool     `json:"ops_alert,omitempty"`
+	CreatedAt       string   `json:"created_at,omitempty"`
 }
 
 type analyticsPipelinePayload struct {
@@ -69,6 +94,7 @@ func ConfigFromEnv() Config {
 		Brokers:      firstNonEmpty(os.Getenv("NOTIFICATION_KAFKA_BROKERS"), os.Getenv("KAFKA_BROKERS"), "localhost:9092"),
 		GroupID:      firstNonEmpty(os.Getenv("NOTIFICATION_KAFKA_GROUP_ID"), os.Getenv("KAFKA_GROUP_ID"), defaultGroupID),
 		DigestTopic:  firstNonEmpty(os.Getenv("NOTIFICATION_DIGEST_TOPIC"), os.Getenv("ANALYTICS_DIGEST_TOPIC"), defaultDigestTopic),
+		CrisisTopic:  firstNonEmpty(os.Getenv("NOTIFICATION_CRISIS_TOPIC"), os.Getenv("ANALYTICS_CRISIS_ALERT_TOPIC"), defaultCrisisTopic),
 		RedisChannel: firstNonEmpty(os.Getenv("NOTIFICATION_REDIS_ANALYTICS_CHANNEL"), defaultRedisChannel),
 	}
 }
@@ -93,6 +119,7 @@ func New(logger log.Logger, redisClient sharedredis.IRedis, cfg Config) (*Bridge
 
 	groupID := firstNonEmpty(cfg.GroupID, defaultGroupID)
 	digestTopic := firstNonEmpty(cfg.DigestTopic, defaultDigestTopic)
+	crisisTopic := firstNonEmpty(cfg.CrisisTopic, defaultCrisisTopic)
 	redisChannel := firstNonEmpty(cfg.RedisChannel, defaultRedisChannel)
 
 	consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
@@ -107,7 +134,7 @@ func New(logger log.Logger, redisClient sharedredis.IRedis, cfg Config) (*Bridge
 		logger:       logger,
 		consumer:     consumer,
 		redisClient:  redisClient,
-		topics:       []string{digestTopic},
+		topics:       uniqueNonEmpty(digestTopic, crisisTopic),
 		redisChannel: redisChannel,
 	}, nil
 }
@@ -176,6 +203,10 @@ func (h *digestHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim 
 }
 
 func (h *digestHandler) handleMessage(ctx context.Context, msg *sarama.ConsumerMessage) error {
+	if strings.TrimSpace(msg.Topic) == defaultCrisisTopic || strings.Contains(strings.TrimSpace(msg.Topic), "crisis") {
+		return h.handleCrisisAlert(ctx, msg)
+	}
+
 	var digest digestPayload
 	if err := json.Unmarshal(msg.Value, &digest); err != nil {
 		return fmt.Errorf("invalid digest payload: %w", err)
@@ -215,6 +246,45 @@ func (h *digestHandler) handleMessage(ctx context.Context, msg *sarama.ConsumerM
 	return nil
 }
 
+func (h *digestHandler) handleCrisisAlert(ctx context.Context, msg *sarama.ConsumerMessage) error {
+	var payload crisisAlertPayload
+	if err := json.Unmarshal(msg.Value, &payload); err != nil {
+		return fmt.Errorf("invalid crisis alert payload: %w", err)
+	}
+	payload.AlertType = firstNonEmpty(payload.AlertType, "CRISIS_ALERT")
+	payload.Severity = strings.ToLower(firstNonEmpty(payload.Severity, "warning"))
+	if strings.TrimSpace(payload.UserID) == "" {
+		return fmt.Errorf("crisis alert missing user_id")
+	}
+
+	dedupeTTL := time.Duration(payload.RepeatCooldown) * time.Minute
+	if dedupeTTL <= 0 {
+		dedupeTTL = time.Hour
+	}
+
+	dedupeKey := fmt.Sprintf("notification:crisis:%s:%s:%s", payload.ProjectID, strings.ToUpper(payload.Level), payload.UserID)
+	ok, err := h.redisClient.GetClient().SetNX(ctx, dedupeKey, "1", dedupeTTL).Result()
+	if err != nil {
+		return err
+	}
+	if !ok {
+		h.logger.Infof(ctx, "Skipped duplicate crisis alert: project=%s user=%s level=%s", payload.ProjectID, payload.UserID, payload.Level)
+		return nil
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	channel := fmt.Sprintf("alert:crisis:user:%s", payload.UserID)
+	if err := h.redisClient.GetClient().Publish(ctx, channel, payloadBytes).Err(); err != nil {
+		return err
+	}
+
+	h.logger.Infof(ctx, "Bridged crisis alert to websocket: project=%s user=%s severity=%s", payload.ProjectID, payload.UserID, payload.Severity)
+	return nil
+}
+
 func splitCSV(value string) []string {
 	parts := strings.Split(value, ",")
 	out := make([]string, 0, len(parts))
@@ -234,6 +304,23 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func uniqueNonEmpty(values ...string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		item := strings.TrimSpace(value)
+		if item == "" {
+			continue
+		}
+		if _, ok := seen[item]; ok {
+			continue
+		}
+		seen[item] = struct{}{}
+		out = append(out, item)
+	}
+	return out
 }
 
 func envBool(key string, fallback bool) bool {
