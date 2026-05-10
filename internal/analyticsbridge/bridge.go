@@ -263,7 +263,7 @@ func (h *digestHandler) handleMessage(ctx context.Context, msg *sarama.ConsumerM
 		return err
 	}
 
-	if err := h.publishWithRetry(ctx, h.redisChannel, payloadBytes, "PUBLISH", "digest"); err != nil {
+	if err := h.publishWithRetry(ctx, h.redisChannel, payloadBytes, "PUBLISH", h.redisChannel); err != nil {
 		return err
 	}
 
