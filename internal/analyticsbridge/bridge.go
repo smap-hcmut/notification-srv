@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -20,6 +21,9 @@ const (
 	defaultDigestTopic  = "analytics.report.digest"
 	defaultCrisisTopic  = "analytics.crisis.alert"
 	defaultRedisChannel = "system:analytics"
+	redisLogCooldown    = 60 * time.Second
+	redisRetryAttempts  = 3
+	redisRetryDelay     = 120 * time.Millisecond
 )
 
 type Config struct {
@@ -141,9 +145,10 @@ func New(logger log.Logger, redisClient sharedredis.IRedis, cfg Config) (*Bridge
 
 func (b *Bridge) Start(ctx context.Context) {
 	handler := &digestHandler{
-		logger:       b.logger,
-		redisClient:  b.redisClient,
-		redisChannel: b.redisChannel,
+		logger:          b.logger,
+		redisClient:     b.redisClient,
+		redisChannel:    b.redisChannel,
+		publishErrByKey: map[string]time.Time{},
 	}
 
 	go b.drainErrors(ctx)
@@ -179,9 +184,11 @@ func (b *Bridge) drainErrors(ctx context.Context) {
 }
 
 type digestHandler struct {
-	logger       log.Logger
-	redisClient  sharedredis.IRedis
-	redisChannel string
+	logger          log.Logger
+	redisClient     sharedredis.IRedis
+	redisChannel    string
+	publishErrByKey map[string]time.Time
+	mu              sync.Mutex
 }
 
 func (h *digestHandler) Setup(sarama.ConsumerGroupSession) error {
@@ -195,7 +202,25 @@ func (h *digestHandler) Cleanup(sarama.ConsumerGroupSession) error {
 func (h *digestHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for msg := range claim.Messages() {
 		if err := h.handleMessage(session.Context(), msg); err != nil {
-			h.logger.Errorf(session.Context(), "Failed to bridge analytics digest to websocket: topic=%s partition=%d offset=%d err=%v", msg.Topic, msg.Partition, msg.Offset, err)
+			if isTransientRedisError(err) {
+				h.logger.Warnf(
+					session.Context(),
+					"Retryable bridge failure: topic=%s partition=%d offset=%d err=%v",
+					msg.Topic,
+					msg.Partition,
+					msg.Offset,
+					err,
+				)
+				continue
+			}
+			h.logger.Errorf(
+				session.Context(),
+				"Failed to bridge analytics digest to websocket: topic=%s partition=%d offset=%d err=%v",
+				msg.Topic,
+				msg.Partition,
+				msg.Offset,
+				err,
+			)
 		}
 		session.MarkMessage(msg, "")
 	}
@@ -238,7 +263,7 @@ func (h *digestHandler) handleMessage(ctx context.Context, msg *sarama.ConsumerM
 		return err
 	}
 
-	if err := h.redisClient.GetClient().Publish(ctx, h.redisChannel, payloadBytes).Err(); err != nil {
+	if err := h.publishWithRetry(ctx, h.redisChannel, payloadBytes, "PUBLISH", "digest"); err != nil {
 		return err
 	}
 
@@ -263,7 +288,7 @@ func (h *digestHandler) handleCrisisAlert(ctx context.Context, msg *sarama.Consu
 	}
 
 	dedupeKey := fmt.Sprintf("notification:crisis:%s:%s:%s", payload.ProjectID, strings.ToUpper(payload.Level), payload.UserID)
-	ok, err := h.redisClient.GetClient().SetNX(ctx, dedupeKey, "1", dedupeTTL).Result()
+	ok, err := h.setNXWithRetry(ctx, dedupeKey, dedupeTTL, payload.UserID)
 	if err != nil {
 		return err
 	}
@@ -277,7 +302,7 @@ func (h *digestHandler) handleCrisisAlert(ctx context.Context, msg *sarama.Consu
 		return err
 	}
 	channel := fmt.Sprintf("alert:crisis:user:%s", payload.UserID)
-	if err := h.redisClient.GetClient().Publish(ctx, channel, payloadBytes).Err(); err != nil {
+	if err := h.publishWithRetry(ctx, channel, payloadBytes, "PUBLISH", payload.UserID); err != nil {
 		return err
 	}
 
@@ -333,4 +358,111 @@ func envBool(key string, fallback bool) bool {
 		return fallback
 	}
 	return parsed
+}
+
+func (h *digestHandler) publishWithRetry(ctx context.Context, channel string, payload []byte, operation, key string) error {
+	var lastErr error
+	for attempt := 1; attempt <= redisRetryAttempts; attempt++ {
+		err := h.redisClient.GetClient().Publish(ctx, channel, payload).Err()
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+		retryable := isTransientRedisError(err)
+		if retryable && attempt < redisRetryAttempts {
+			h.logRedisWarn(ctx, operation, key, attempt, redisRetryAttempts, err)
+			time.Sleep(redisRetryDelay)
+			continue
+		}
+
+		h.logRedisError(ctx, operation, key, err, retryable)
+		if retryable {
+			return lastErr
+		}
+		return lastErr
+	}
+
+	return lastErr
+}
+
+func (h *digestHandler) setNXWithRetry(ctx context.Context, key string, ttl time.Duration, keyLabel string) (bool, error) {
+	var lastErr error
+	for attempt := 1; attempt <= redisRetryAttempts; attempt++ {
+		ok, err := h.redisClient.GetClient().SetNX(ctx, key, "1", ttl).Result()
+		if err == nil {
+			return ok, nil
+		}
+
+		lastErr = err
+		retryable := isTransientRedisError(err)
+		if retryable && attempt < redisRetryAttempts {
+			h.logRedisWarn(ctx, "SETNX", keyLabel, attempt, redisRetryAttempts, err)
+			time.Sleep(redisRetryDelay)
+			continue
+		}
+		h.logRedisError(ctx, "SETNX", key, err, retryable)
+		return false, lastErr
+	}
+
+	return false, lastErr
+}
+
+func (h *digestHandler) logRedisWarn(ctx context.Context, operation, key string, attempt, maxAttempts int, err error) {
+	eventKey := fmt.Sprintf("%s:%s:transient", operation, key)
+	now := time.Now()
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	nextAt, exists := h.publishErrByKey[eventKey]
+	if exists && now.Before(nextAt) {
+		return
+	}
+	h.publishErrByKey[eventKey] = now.Add(redisLogCooldown)
+
+	h.logger.Warnf(ctx, "%s transient redis error attempt=%d/%d key=%s: %v", operation, attempt, maxAttempts, key, err)
+}
+
+func (h *digestHandler) logRedisError(ctx context.Context, operation, key string, err error, retryable bool) {
+	eventKey := fmt.Sprintf("%s:%s", operation, key)
+	now := time.Now()
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	nextAt, exists := h.publishErrByKey[eventKey]
+	if exists && now.Before(nextAt) {
+		return
+	}
+	h.publishErrByKey[eventKey] = now.Add(redisLogCooldown)
+
+	if retryable {
+		h.logger.Warnf(ctx, "Redis transient error: operation=%s key=%s err=%v", operation, key, err)
+		return
+	}
+	h.logger.Errorf(ctx, "Redis operation failed: operation=%s key=%s err=%v", operation, key, err)
+}
+
+func isTransientRedisError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errText := strings.ToLower(err.Error())
+	transientSignals := []string{
+		"loading redis is loading the dataset in memory",
+		"connect: connection refused",
+		"connection refused",
+		"connection timed out",
+		"timeout",
+		"read: connection reset",
+		"connection reset",
+		"temporary failure",
+		"i/o timeout",
+		"dial tcp",
+	}
+	for _, signal := range transientSignals {
+		if strings.Contains(errText, signal) {
+			return true
+		}
+	}
+	return false
 }
