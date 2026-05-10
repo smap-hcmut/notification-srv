@@ -10,7 +10,6 @@ import (
 	"github.com/smap-hcmut/shared-libs/go/auth"
 	"github.com/smap-hcmut/shared-libs/go/discord"
 	"github.com/smap-hcmut/shared-libs/go/log"
-	"github.com/smap-hcmut/shared-libs/go/middleware"
 	pkgRedis "github.com/smap-hcmut/shared-libs/go/redis"
 )
 
@@ -88,7 +87,7 @@ func New(logger log.Logger, cfg Config) (*HTTPServer, error) {
 	}
 
 	// Add middlewares
-	srv.gin.Use(middleware.Logger(srv.logger, srv.environment))
+	srv.gin.Use(requestLogger(srv.logger, srv.environment))
 	srv.gin.Use(gin.Recovery())
 
 	if err := srv.validate(); err != nil {
