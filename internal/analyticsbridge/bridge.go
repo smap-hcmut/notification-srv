@@ -68,27 +68,40 @@ type digestPayload struct {
 	DomainOverlay string `json:"domain_overlay"`
 }
 
+// crisisSampleReference carries one piece of evidence behind a crisis alert.
+// The producer side fills this in by looking the UAP up in analysis.post_insight
+// so the toast can link to the actual post + show a quoted excerpt. Comments
+// without a URL are dropped upstream — those entries would have nothing for
+// the front-end to render.
+type crisisSampleReference struct {
+	UapID          string `json:"uap_id,omitempty"`
+	UapType        string `json:"uap_type,omitempty"`
+	URL            string `json:"url,omitempty"`
+	ContentExcerpt string `json:"content_excerpt,omitempty"`
+}
+
 type crisisAlertPayload struct {
-	AlertType       string   `json:"alert_type"`
-	ProjectID       string   `json:"project_id"`
-	ProjectName     string   `json:"project_name"`
-	CampaignID      string   `json:"campaign_id,omitempty"`
-	UserID          string   `json:"user_id"`
-	Severity        string   `json:"severity"`
-	Level           string   `json:"level,omitempty"`
-	Metric          string   `json:"metric"`
-	CurrentValue    float64  `json:"current_value"`
-	Threshold       float64  `json:"threshold"`
-	AffectedAspects []string `json:"affected_aspects"`
-	SampleMentions  []string `json:"sample_mentions"`
-	TimeWindow      string   `json:"time_window"`
-	ActionRequired  string   `json:"action_required"`
-	RunID           string   `json:"run_id,omitempty"`
-	Title           string   `json:"title,omitempty"`
-	Message         string   `json:"message,omitempty"`
-	RepeatCooldown  int      `json:"repeat_cooldown_minutes,omitempty"`
-	OpsAlert        bool     `json:"ops_alert,omitempty"`
-	CreatedAt       string   `json:"created_at,omitempty"`
+	AlertType        string                  `json:"alert_type"`
+	ProjectID        string                  `json:"project_id"`
+	ProjectName      string                  `json:"project_name"`
+	CampaignID       string                  `json:"campaign_id,omitempty"`
+	UserID           string                  `json:"user_id"`
+	Severity         string                  `json:"severity"`
+	Level            string                  `json:"level,omitempty"`
+	Metric           string                  `json:"metric"`
+	CurrentValue     float64                 `json:"current_value"`
+	Threshold        float64                 `json:"threshold"`
+	AffectedAspects  []string                `json:"affected_aspects"`
+	SampleMentions   []string                `json:"sample_mentions"`
+	SampleReferences []crisisSampleReference `json:"sample_references,omitempty"`
+	TimeWindow       string                  `json:"time_window"`
+	ActionRequired   string                  `json:"action_required"`
+	RunID            string                  `json:"run_id,omitempty"`
+	Title            string                  `json:"title,omitempty"`
+	Message          string                  `json:"message,omitempty"`
+	RepeatCooldown   int                     `json:"repeat_cooldown_minutes,omitempty"`
+	OpsAlert         bool                    `json:"ops_alert,omitempty"`
+	CreatedAt        string                  `json:"created_at,omitempty"`
 }
 
 type analyticsPipelinePayload struct {
