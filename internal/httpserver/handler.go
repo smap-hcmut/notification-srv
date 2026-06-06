@@ -69,8 +69,8 @@ func (srv *HTTPServer) mapHandlers() error {
 	)
 
 	// Register Routes
-	// WebSocket is registered at root level (not under api/v1) because
-	// Traefik strips /notification prefix → client calls /notification/ws → service receives /ws
+	// WebSocket is registered at root level and accepts both /ws and
+	// /notification/ws because local proxy and Traefik may preserve the prefix.
 	wsHandler.RegisterRoutes(srv.gin.Group(""), mw)
 
 	return nil

@@ -104,10 +104,9 @@ func TestWebSocketConnection(t *testing.T) {
 	alertUC := &MockAlertUC{}
 	scopeMgr := &MockScopeManager{}
 
-	// Mock Verify Token
 	scopeMgr.On("Verify", "valid_token").Return(auth.Payload{
 		UserID: "user_123",
-	}, nil)
+	}, nil).Twice()
 
 	// Init UseCase
 	uc := usecase.New(logger, 100, alertUC)
@@ -138,16 +137,16 @@ func TestWebSocketConnection(t *testing.T) {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	// Convert http URL to ws URL
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?token=valid_token"
+	for _, path := range []string{"/ws", "/notification/ws"} {
+		wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + path + "?token=valid_token"
 
-	// Connect
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	assert.NoError(t, err, "Should connect successfully")
-	assert.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
+		conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+		assert.NoError(t, err, "Should connect successfully at %s", path)
+		assert.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
 
-	if conn != nil {
-		conn.Close()
+		if conn != nil {
+			conn.Close()
+		}
 	}
 
 	// Verify Expectations

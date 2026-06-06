@@ -20,7 +20,7 @@ func requestLogger(l log.Logger, environment string) gin.HandlerFunc {
 		}
 
 		status := c.Writer.Status()
-		if path == "/ws" && status == 401 {
+		if (path == "/ws" || path == "/notification/ws") && status == 401 {
 			// Browsers with stale tabs can retry unauthenticated websocket handshakes.
 			// Invalid tokens are still logged by the websocket handler itself.
 			return

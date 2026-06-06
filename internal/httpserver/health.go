@@ -4,7 +4,6 @@ import (
 	"notification-srv/internal/websocket"
 
 	"github.com/gin-gonic/gin"
-	"github.com/smap-hcmut/shared-libs/go/errors"
 	"github.com/smap-hcmut/shared-libs/go/response"
 )
 
@@ -51,7 +50,12 @@ func (srv *HTTPServer) healthCheck(c *gin.Context) {
 	})
 }
 
-// readyCheck handles readiness check requests
+// readyCheck handles readiness check requests.
+//
+// Redis drives realtime fanout, but the service can still accept HTTP and
+// WebSocket connections in degraded mode. Returning 200 with an explicit
+// degraded status keeps Kubernetes from hiding the service while preserving
+// operator-visible Redis failure details.
 // @Summary Readiness Check
 // @Description Check if the WebSocket service is ready to serve traffic
 // @Tags Health
@@ -63,28 +67,34 @@ func (srv *HTTPServer) healthCheck(c *gin.Context) {
 func (srv *HTTPServer) readyCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 
+	redisStatus := "connected"
+	redisErr := ""
 	if srv.redis == nil {
-		response.Error(c, errors.NewInternalServerError("Redis client not initialized"))
-		return
+		redisStatus = "degraded"
+		redisErr = "not initialized"
+	} else if err := srv.redis.Ping(ctx); err != nil {
+		redisStatus = "degraded"
+		redisErr = err.Error()
 	}
 
-	// Check if Redis is ready
-	if err := srv.redis.Ping(ctx); err != nil {
-		response.Error(c, errors.NewInternalServerError("Redis connection not available"))
-		return
-	}
-
+	subscriberStatus := "ready"
 	if srv.wsSubscriber == nil {
-		response.Error(c, errors.NewInternalServerError("WebSocket subscriber not initialized"))
-		return
+		subscriberStatus = "disabled"
+	}
+
+	status := "ready"
+	if redisStatus != "connected" || subscriberStatus != "ready" {
+		status = "degraded"
 	}
 
 	response.OK(c, gin.H{
-		"status":  "ready",
-		"message": "From SMAP Notification Service With Love",
-		"version": "1.0.0",
-		"service": "notification-srv",
-		"redis":   "connected",
+		"status":      status,
+		"message":     "From SMAP Notification Service With Love",
+		"version":     "1.0.0",
+		"service":     "notification-srv",
+		"redis":       redisStatus,
+		"redis_error": redisErr,
+		"subscriber":  subscriberStatus,
 	})
 }
 

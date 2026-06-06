@@ -7,13 +7,8 @@ import (
 
 // RegisterRoutes registers the WebSocket routes.
 func (h *handler) RegisterRoutes(r *gin.RouterGroup, mw *middleware.Middleware) {
-	// WebSocket endpoint
-	// Note: We might allow public access to /ws but enforce auth inside handler,
-	// because browser's WebSocket API doesn't allow custom headers for bearer token.
-	// So we might skip standard auth middleware here if it strictly requires Header.
-
-	ws := r.Group("/ws")
-	{
-		ws.GET("", h.HandleWebSocket)
-	}
+	// WebSocket auth is enforced inside the handler because the browser WebSocket
+	// API cannot send custom bearer-token headers.
+	r.GET("/ws", h.HandleWebSocket)
+	r.GET("/notification/ws", h.HandleWebSocket)
 }
