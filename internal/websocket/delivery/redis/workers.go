@@ -4,17 +4,18 @@ import (
 	"context"
 
 	"notification-srv/internal/websocket"
-
-	"github.com/redis/go-redis/v9"
 )
 
-func (s *subscriber) handleMessage(ctx context.Context, msg *redis.Message) {
+// dispatch forwards a stream entry to the websocket usecase. Split out from
+// the stream loop so unit tests can drive the same path without faking a
+// Redis client.
+func (s *subscriber) dispatch(ctx context.Context, channel string, payload []byte) {
 	input := websocket.ProcessMessageInput{
-		Channel: msg.Channel,
-		Payload: []byte(msg.Payload),
+		Channel: channel,
+		Payload: payload,
 	}
 
 	if err := s.uc.ProcessMessage(ctx, input); err != nil {
-		s.logger.Errorf(ctx, "process message failed: channel=%s err=%v", msg.Channel, err)
+		s.logger.Errorf(ctx, "process message failed: channel=%s err=%v", channel, err)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/smap-hcmut/shared-libs/go/kafka"
 	"github.com/smap-hcmut/shared-libs/go/log"
 	sharedredis "github.com/smap-hcmut/shared-libs/go/redis"
@@ -24,6 +25,20 @@ const (
 	redisLogCooldown    = 60 * time.Second
 	redisRetryAttempts  = 3
 	redisRetryDelay     = 120 * time.Millisecond
+
+	// notificationStream is the single Redis Stream that replaces the legacy
+	// PubSub fan-out. PSubscribe had no backpressure — a slow WebSocket
+	// subscriber silently dropped messages. The Stream keeps each entry until
+	// every consumer group acks it, so notifications survive consumer lag.
+	// The legacy channel name is preserved as a `channel` field on every
+	// entry so the websocket router keeps the same routing semantics.
+	notificationStream = "smap:notifications:stream"
+
+	// notificationStreamMaxLen approximates the cap (~ minutes of traffic)
+	// using XADD MAXLEN ~ so old entries are trimmed automatically. Set
+	// generously because Redis cache is emptyDir per memory; longer history
+	// is wasted if Redis restarts.
+	notificationStreamMaxLen int64 = 10000
 )
 
 type Config struct {
@@ -360,10 +375,23 @@ func envBool(key string, fallback bool) bool {
 	return parsed
 }
 
+// publishWithRetry pushes a notification into the shared Redis Stream. The
+// channel argument is preserved as a payload field so consumers can route
+// the same way they did under PubSub; switching to a stream gives the
+// notification a durable queue position that survives slow subscribers.
 func (h *digestHandler) publishWithRetry(ctx context.Context, channel string, payload []byte, operation, key string) error {
 	var lastErr error
+	args := &goredis.XAddArgs{
+		Stream: notificationStream,
+		MaxLen: notificationStreamMaxLen,
+		Approx: true,
+		Values: map[string]interface{}{
+			"channel": channel,
+			"payload": payload,
+		},
+	}
 	for attempt := 1; attempt <= redisRetryAttempts; attempt++ {
-		err := h.redisClient.GetClient().Publish(ctx, channel, payload).Err()
+		err := h.redisClient.GetClient().XAdd(ctx, args).Err()
 		if err == nil {
 			return nil
 		}
