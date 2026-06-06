@@ -10,6 +10,7 @@ import (
 	"github.com/smap-hcmut/shared-libs/go/auth"
 	"github.com/smap-hcmut/shared-libs/go/discord"
 	"github.com/smap-hcmut/shared-libs/go/log"
+	"github.com/smap-hcmut/shared-libs/go/metrics"
 	pkgRedis "github.com/smap-hcmut/shared-libs/go/redis"
 )
 
@@ -89,6 +90,11 @@ func New(logger log.Logger, cfg Config) (*HTTPServer, error) {
 	// Add middlewares
 	srv.gin.Use(requestLogger(srv.logger, srv.environment))
 	srv.gin.Use(gin.Recovery())
+	srv.gin.Use(metrics.GinMiddleware("notification-srv"))
+
+	// Expose Prometheus scrape endpoint on the main HTTP port so the SMAP
+	// monitoring stack can pull RED metrics without an extra Service.
+	metrics.MountMetrics(srv.gin)
 
 	if err := srv.validate(); err != nil {
 		return nil, err
