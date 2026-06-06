@@ -28,7 +28,7 @@ func (uc *implUseCase) DispatchDataOnboarding(ctx context.Context, input alert.D
 		fields = append(fields, buildField("Details", input.Message, false))
 	}
 
-	title := fmt.Sprintf("Data Onboarding: %s", strings.Title(status))
+	title := fmt.Sprintf("Data Onboarding: %s", strings.ToUpper(status[:1])+status[1:])
 	desc := fmt.Sprintf("Data ingestion for **%s** has finished.", input.ProjectID)
 
 	msgType := discord.MessageTypeSuccess

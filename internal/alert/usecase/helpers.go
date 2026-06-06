@@ -2,36 +2,9 @@ package usecase
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/smap-hcmut/shared-libs/go/discord"
 )
-
-// mapSeverityToColor maps alert severity to Discord embed color.
-func mapSeverityToColor(severity string) int {
-	switch strings.ToLower(severity) {
-	case "critical":
-		return 0xFF0000 // Red
-	case "warning":
-		return 0xFFA500 // Orange
-	case "info":
-		return 0x3498DB // Blue
-	default:
-		return 0x95A5A6 // Gray
-	}
-}
-
-// mapStatusToColor maps onboarding status to Discord embed color.
-func mapStatusToColor(status string) int {
-	switch strings.ToLower(status) {
-	case "completed":
-		return 0x2ECC71 // Green
-	case "failed":
-		return 0xE74C3C // Red
-	default:
-		return 0x3498DB // Blue
-	}
-}
 
 func buildField(name string, value string, inline bool) discord.EmbedField {
 	if value == "" {
