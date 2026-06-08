@@ -24,8 +24,31 @@ func (uc *implUseCase) DispatchCrisisAlert(ctx context.Context, input alert.Cris
 		fields = append(fields, buildField("Affected Aspects", strings.Join(input.AffectedAspects, ", "), false))
 	}
 
-	if len(input.SampleMentions) > 0 {
-		// Limit to 3 mentions
+	// Prefer SampleReferences (have URL + excerpt) over the legacy
+	// SampleMentions text-only list. Each reference renders as a markdown
+	// link Discord makes clickable, so the on-call reviewer can jump
+	// straight to the original post instead of grepping by snippet.
+	if len(input.SampleReferences) > 0 {
+		count := 3
+		if len(input.SampleReferences) < 3 {
+			count = len(input.SampleReferences)
+		}
+		lines := make([]string, 0, count)
+		for _, ref := range input.SampleReferences[:count] {
+			excerpt := strings.TrimSpace(ref.ContentExcerpt)
+			if excerpt == "" {
+				excerpt = "(no excerpt)"
+			}
+			if url := strings.TrimSpace(ref.URL); url != "" {
+				lines = append(lines, fmt.Sprintf("> [%s](%s)", excerpt, url))
+			} else {
+				lines = append(lines, fmt.Sprintf("> %s", excerpt))
+			}
+		}
+		fields = append(fields, buildField("Sample Mentions", strings.Join(lines, "\n"), false))
+	} else if len(input.SampleMentions) > 0 {
+		// Back-compat: producers that have not yet started emitting
+		// sample_references still get rendered as plain quoted text.
 		count := 3
 		if len(input.SampleMentions) < 3 {
 			count = len(input.SampleMentions)
@@ -35,7 +58,6 @@ func (uc *implUseCase) DispatchCrisisAlert(ctx context.Context, input alert.Cris
 		for i, m := range mentions {
 			quotedMentions[i] = fmt.Sprintf("> %s", m)
 		}
-		// Combined string might still be long, buildField handles truncation now.
 		fields = append(fields, buildField("Sample Mentions", strings.Join(quotedMentions, "\n"), false))
 	}
 

@@ -112,20 +112,30 @@ func (uc *implUseCase) ProcessMessage(ctx context.Context, input ws.ProcessMessa
 			if !strings.EqualFold(payloadData.Severity, "critical") || !opsAlert {
 				break
 			}
+			refs := make([]alert.CrisisSampleReference, 0, len(payloadData.SampleReferences))
+			for _, r := range payloadData.SampleReferences {
+				refs = append(refs, alert.CrisisSampleReference{
+					UapID:          r.UapID,
+					UapType:        r.UapType,
+					URL:            r.URL,
+					ContentExcerpt: r.ContentExcerpt,
+				})
+			}
 			// Map to alert.CrisisAlertInput
 			alertInput := alert.CrisisAlertInput{
-				ProjectID:       payloadData.ProjectID,
-				ProjectName:     payloadData.ProjectName,
-				Severity:        payloadData.Severity,
-				AlertType:       payloadData.AlertType,
-				Metric:          payloadData.Metric,
-				CurrentValue:    payloadData.CurrentValue,
-				Threshold:       payloadData.Threshold,
-				AffectedAspects: payloadData.AffectedAspects,
-				SampleMentions:  payloadData.SampleMentions,
-				TimeWindow:      payloadData.TimeWindow,
-				ActionRequired:  payloadData.ActionRequired,
-				GeneratedAt:     output.Timestamp,
+				ProjectID:        payloadData.ProjectID,
+				ProjectName:      payloadData.ProjectName,
+				Severity:         payloadData.Severity,
+				AlertType:        payloadData.AlertType,
+				Metric:           payloadData.Metric,
+				CurrentValue:     payloadData.CurrentValue,
+				Threshold:        payloadData.Threshold,
+				AffectedAspects:  payloadData.AffectedAspects,
+				SampleMentions:   payloadData.SampleMentions,
+				SampleReferences: refs,
+				TimeWindow:       payloadData.TimeWindow,
+				ActionRequired:   payloadData.ActionRequired,
+				GeneratedAt:      output.Timestamp,
 			}
 
 			go func() {

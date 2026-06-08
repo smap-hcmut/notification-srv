@@ -78,21 +78,29 @@ type AnalyticsPipelinePayload struct {
 	EstimatedTimeMs int64  `json:"estimated_time_ms"`
 }
 
+type CrisisSampleReference struct {
+	UapID          string `json:"uap_id,omitempty"`
+	UapType        string `json:"uap_type,omitempty"`
+	URL            string `json:"url,omitempty"`
+	ContentExcerpt string `json:"content_excerpt,omitempty"`
+}
+
 type CrisisAlertPayload struct {
-	ProjectID       string   `json:"project_id"`
-	ProjectName     string   `json:"project_name"`
-	Severity        string   `json:"severity"`
-	AlertType       string   `json:"alert_type"`
-	Metric          string   `json:"metric"`
-	CurrentValue    float64  `json:"current_value"`
-	Threshold       float64  `json:"threshold"`
-	AffectedAspects []string `json:"affected_aspects"`
-	SampleMentions  []string `json:"sample_mentions"`
-	TimeWindow      string   `json:"time_window"`
-	ActionRequired  string   `json:"action_required"`
-	Title           string   `json:"title,omitempty"`
-	Message         string   `json:"message,omitempty"`
-	OpsAlert        *bool    `json:"ops_alert,omitempty"`
+	ProjectID        string                 `json:"project_id"`
+	ProjectName      string                 `json:"project_name"`
+	Severity         string                 `json:"severity"`
+	AlertType        string                 `json:"alert_type"`
+	Metric           string                 `json:"metric"`
+	CurrentValue     float64                `json:"current_value"`
+	Threshold        float64                `json:"threshold"`
+	AffectedAspects  []string               `json:"affected_aspects"`
+	SampleMentions   []string               `json:"sample_mentions"`
+	SampleReferences []CrisisSampleReference `json:"sample_references,omitempty"`
+	TimeWindow       string                 `json:"time_window"`
+	ActionRequired   string                 `json:"action_required"`
+	Title            string                 `json:"title,omitempty"`
+	Message          string                 `json:"message,omitempty"`
+	OpsAlert         *bool                  `json:"ops_alert,omitempty"`
 }
 
 type CampaignEventPayload struct {
