@@ -72,6 +72,20 @@ func (s *subscriber) listen(ctx context.Context) {
 				return
 			default:
 			}
+			// Redis runs on emptyDir, so a pod restart wipes the stream and
+			// its consumer group; the next XReadGroup then loops forever with
+			// NOGROUP. Re-run ensureGroup whenever Redis says the group is
+			// gone so the subscriber heals on its own instead of spamming
+			// errors until a deploy restarts it.
+			if strings.Contains(err.Error(), "NOGROUP") {
+				if recreated := s.ensureGroup(ctx); recreated != nil {
+					s.logger.Errorf(ctx, "notification-srv: ensureGroup retry failed: %v", recreated)
+				} else {
+					s.logger.Warnf(ctx, "notification-srv: stream lost; consumer group recreated")
+				}
+				time.Sleep(time.Second)
+				continue
+			}
 			s.logger.Errorf(ctx, "notification-srv: XReadGroup failed: %v", err)
 			time.Sleep(time.Second)
 			continue
